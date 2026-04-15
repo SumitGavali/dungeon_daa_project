@@ -1,0 +1,1217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PROCEDURAL DUNGEON GENERATOR</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Orbitron:wght@900&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        :root {
+            --bg-primary: #0a0e14;
+            --bg-secondary: #151922;
+            --accent-green: #00ff41;
+            --accent-cyan: #00d9ff;
+            --accent-red: #ff0055;
+            --accent-yellow: #ffcc00;
+            --text-primary: #e6e6e6;
+            --text-dim: #666d7a;
+            --border-color: #1f2937;
+        }
+        
+        body {
+            font-family: 'JetBrains Mono', monospace;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            overflow-x: hidden;
+            background-image: 
+                repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,255,65,0.03) 2px, rgba(0,255,65,0.03) 4px);
+        }
+        
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        header {
+            margin-bottom: 3rem;
+            border-bottom: 2px solid var(--accent-green);
+            padding-bottom: 2rem;
+            position: relative;
+        }
+        
+        h1 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: clamp(2rem, 5vw, 4rem);
+            font-weight: 900;
+            color: var(--accent-green);
+            letter-spacing: 0.05em;
+            text-shadow: 0 0 20px rgba(0,255,65,0.5);
+            margin-bottom: 0.5rem;
+            animation: glitch 3s infinite;
+        }
+        
+        @keyframes glitch {
+            0%, 96%, 100% { transform: translate(0); }
+            97% { transform: translate(-2px, 2px); }
+            98% { transform: translate(2px, -2px); }
+            99% { transform: translate(-2px, -2px); }
+        }
+        
+        .subtitle {
+            color: var(--text-dim);
+            font-size: 0.875rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+        }
+        
+        .grid-layout {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        @media (max-width: 1200px) {
+            .grid-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .canvas-container {
+            background: var(--bg-secondary);
+            border: 2px solid var(--border-color);
+            border-radius: 4px;
+            padding: 1rem;
+            position: relative;
+            box-shadow: 0 0 40px rgba(0,255,65,0.1);
+        }
+        
+        canvas {
+            display: block;
+            width: 100%;
+            height: auto;
+            background: #000;
+            border: 1px solid var(--accent-green);
+            cursor: crosshair;
+        }
+        
+        .controls {
+            background: var(--bg-secondary);
+            border: 2px solid var(--border-color);
+            border-radius: 4px;
+            padding: 1.5rem;
+            position: sticky;
+            top: 2rem;
+        }
+        
+        .control-group {
+            margin-bottom: 2rem;
+        }
+        
+        .control-group:last-child {
+            margin-bottom: 0;
+        }
+        
+        .control-label {
+            display: block;
+            color: var(--accent-cyan);
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 0.75rem;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            height: 4px;
+            background: var(--border-color);
+            outline: none;
+            border-radius: 2px;
+            -webkit-appearance: none;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            background: var(--accent-green);
+            cursor: pointer;
+            border-radius: 2px;
+            box-shadow: 0 0 10px rgba(0,255,65,0.5);
+        }
+        
+        input[type="range"]::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            background: var(--accent-green);
+            cursor: pointer;
+            border-radius: 2px;
+            border: none;
+        }
+        
+        input[type="text"], input[type="number"] {
+            width: 100%;
+            padding: 0.75rem;
+            background: #000;
+            border: 1px solid var(--border-color);
+            color: var(--accent-green);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.875rem;
+            border-radius: 2px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        
+        input[type="text"]:focus, input[type="number"]:focus {
+            border-color: var(--accent-green);
+            box-shadow: 0 0 10px rgba(0,255,65,0.2);
+        }
+        
+        .value-display {
+            display: inline-block;
+            background: #000;
+            color: var(--accent-green);
+            padding: 0.25rem 0.5rem;
+            border-radius: 2px;
+            font-size: 0.75rem;
+            margin-left: 0.5rem;
+            min-width: 40px;
+            text-align: center;
+        }
+        
+        button {
+            width: 100%;
+            padding: 1rem;
+            background: transparent;
+            border: 2px solid var(--accent-green);
+            color: var(--accent-green);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.875rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            cursor: pointer;
+            border-radius: 2px;
+            transition: all 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: var(--accent-green);
+            transition: left 0.3s;
+            z-index: -1;
+        }
+        
+        button:hover::before {
+            left: 0;
+        }
+        
+        button:hover {
+            color: #000;
+            box-shadow: 0 0 20px rgba(0,255,65,0.5);
+        }
+        
+        button:active {
+            transform: scale(0.98);
+        }
+        
+        button.secondary {
+            border-color: var(--accent-cyan);
+            color: var(--accent-cyan);
+            margin-top: 0.5rem;
+        }
+        
+        button.secondary::before {
+            background: var(--accent-cyan);
+        }
+        
+        .stats {
+            background: #000;
+            border: 1px solid var(--border-color);
+            border-radius: 2px;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.75rem;
+        }
+        
+        .stat-row:last-child {
+            border-bottom: none;
+        }
+        
+        .stat-label {
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        
+        .stat-value {
+            color: var(--accent-yellow);
+            font-weight: 700;
+        }
+        
+        .phase-indicator {
+            background: #000;
+            border: 1px solid var(--border-color);
+            border-radius: 2px;
+            padding: 0.75rem;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+        
+        .phase-text {
+            color: var(--accent-cyan);
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+        
+        .legend {
+            background: var(--bg-secondary);
+            border: 2px solid var(--border-color);
+            border-radius: 4px;
+            padding: 1.5rem;
+            margin-top: 2rem;
+        }
+        
+        .legend-title {
+            color: var(--accent-cyan);
+            font-size: 0.875rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 1rem;
+        }
+        
+        .legend-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 0.75rem;
+        }
+        
+        .legend-color {
+            width: 24px;
+            height: 24px;
+            border-radius: 2px;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        .algorithm-info {
+            background: var(--bg-secondary);
+            border: 2px solid var(--border-color);
+            border-radius: 4px;
+            padding: 1.5rem;
+            margin-top: 2rem;
+        }
+        
+        .algorithm-info h3 {
+            color: var(--accent-green);
+            font-size: 1rem;
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+        
+        .algorithm-info p {
+            color: var(--text-dim);
+            font-size: 0.75rem;
+            line-height: 1.6;
+            margin-bottom: 0.75rem;
+        }
+        
+        .algorithm-info code {
+            color: var(--accent-yellow);
+            background: #000;
+            padding: 0.125rem 0.375rem;
+            border-radius: 2px;
+        }
+        
+        .loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: var(--border-color);
+            z-index: 1000;
+            overflow: hidden;
+        }
+        
+        .loading-bar {
+            height: 100%;
+            background: var(--accent-green);
+            width: 0%;
+            transition: width 0.3s;
+            box-shadow: 0 0 10px var(--accent-green);
+        }
+    </style>
+</head>
+<body>
+    <div class="loading">
+        <div class="loading-bar" id="loadingBar"></div>
+    </div>
+    
+    <div class="container">
+        <header>
+            <h1>PROCEDURAL DUNGEON GENERATOR</h1>
+            <div class="subtitle">BSP • Prim's MST • Backtracking • Graph Analysis</div>
+        </header>
+        
+        <div class="grid-layout">
+            <div class="canvas-container">
+                <div class="phase-indicator">
+                    <div class="phase-text" id="phaseText">READY TO GENERATE</div>
+                </div>
+                <canvas id="canvas" width="800" height="800"></canvas>
+            </div>
+            
+            <div class="controls">
+                <div class="control-group">
+                    <label class="control-label">
+                        Map Size
+                        <span class="value-display" id="mapSizeValue">800</span>
+                    </label>
+                    <input type="range" id="mapSize" min="400" max="1200" value="800" step="100">
+                </div>
+                
+                <div class="control-group">
+                    <label class="control-label">
+                        Min Room Size
+                        <span class="value-display" id="minRoomValue">40</span>
+                    </label>
+                    <input type="range" id="minRoom" min="30" max="80" value="40" step="5">
+                </div>
+                
+                <div class="control-group">
+                    <label class="control-label">
+                        Max Depth (BSP Recursion)
+                        <span class="value-display" id="maxDepthValue">6</span>
+                    </label>
+                    <input type="range" id="maxDepth" min="3" max="8" value="6" step="1">
+                </div>
+                
+                <div class="control-group">
+                    <label class="control-label">
+                        Seed (for reproducibility)
+                    </label>
+                    <input type="text" id="seed" value="" placeholder="Random">
+                </div>
+                
+                <div class="control-group">
+                    <label class="control-label">
+                        Number of Keys/Doors
+                        <span class="value-display" id="numKeysValue">3</span>
+                    </label>
+                    <input type="range" id="numKeys" min="1" max="5" value="3" step="1">
+                </div>
+                
+                <button id="generateBtn">▶ GENERATE DUNGEON</button>
+                <button class="secondary" id="exportBtn">↓ Export as JSON</button>
+                
+                <div class="stats" id="stats">
+                    <div class="stat-row">
+                        <span class="stat-label">Total Rooms</span>
+                        <span class="stat-value" id="statRooms">—</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Corridors (MST)</span>
+                        <span class="stat-value" id="statCorridors">—</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">BSP Depth</span>
+                        <span class="stat-value" id="statDepth">—</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Keys Placed</span>
+                        <span class="stat-value" id="statKeys">—</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Reachable</span>
+                        <span class="stat-value" id="statReachable">—</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Generation Time</span>
+                        <span class="stat-value" id="statTime">—</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="legend">
+            <div class="legend-title">LEGEND</div>
+            <div class="legend-grid">
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #1a1a1a;"></div>
+                    <span>BSP Partition Walls</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #2a2a2a;"></div>
+                    <span>Room Floor</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: var(--accent-green);"></div>
+                    <span>MST Corridors</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: var(--accent-cyan);"></div>
+                    <span>Start Position</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: var(--accent-yellow);"></div>
+                    <span>Keys</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: var(--accent-red);"></div>
+                    <span>Locked Doors</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="algorithm-info">
+            <h3>Phase 1: Binary Space Partitioning (Divide & Conquer)</h3>
+            <p>
+                The canvas is recursively split into binary partitions until reaching minimum room size. 
+                Each leaf node becomes a room with random insets. This guarantees non-overlapping rooms 
+                by construction—no collision detection needed. Time complexity: <code>O(n)</code> where n is the number of rooms.
+            </p>
+            
+            <h3>Phase 2: Prim's MST (Minimum Spanning Tree)</h3>
+            <p>
+                Connects all N rooms using exactly N−1 corridors by building a minimum spanning tree. 
+                Starts from a random room and greedily adds the shortest edge to an unvisited room. 
+                Uses Euclidean distance between room centers. Time complexity: <code>O(E log V)</code> with a min-heap.
+            </p>
+            
+            <h3>Phase 3: Backtracking (Constraint Satisfaction)</h3>
+            <p>
+                Places keys and doors while enforcing the constraint: for any path from start to a locked door, 
+                the corresponding key must appear earlier. Uses DFS to verify each placement. 
+                Backtracks when a constraint is violated. Time complexity: <code>O(k! × V)</code> worst case, 
+                where k is number of keys.
+            </p>
+            
+            <h3>Phase 4: Graph Analysis (DFS/BFS Verification)</h3>
+            <p>
+                Performs depth-first search to confirm all rooms are reachable from start. 
+                Detects cycles and validates key-door orderings across all possible traversal paths. 
+                BFS computes shortest path distances for difficulty balancing. Time complexity: <code>O(V + E)</code>.
+            </p>
+        </div>
+    </div>
+    
+    <script>
+        // ============================================================================
+        // SEEDED RANDOM NUMBER GENERATOR
+        // ============================================================================
+        class SeededRandom {
+            constructor(seed) {
+                this.seed = seed || Math.floor(Math.random() * 1000000);
+                this.state = this.seed;
+            }
+            
+            next() {
+                // Linear congruential generator
+                this.state = (this.state * 1664525 + 1013904223) % 4294967296;
+                return this.state / 4294967296;
+            }
+            
+            range(min, max) {
+                return Math.floor(this.next() * (max - min + 1)) + min;
+            }
+            
+            choice(arr) {
+                return arr[Math.floor(this.next() * arr.length)];
+            }
+        }
+        
+        // ============================================================================
+        // DATA STRUCTURES
+        // ============================================================================
+        class Rectangle {
+            constructor(x, y, width, height) {
+                this.x = x;
+                this.y = y;
+                this.width = width;
+                this.height = height;
+            }
+            
+            get centerX() { return this.x + this.width / 2; }
+            get centerY() { return this.y + this.height / 2; }
+        }
+        
+        class BSPNode {
+            constructor(rect) {
+                this.rect = rect;
+                this.left = null;
+                this.right = null;
+                this.room = null;
+            }
+            
+            isLeaf() {
+                return this.left === null && this.right === null;
+            }
+        }
+        
+        class Room {
+            constructor(id, rect) {
+                this.id = id;
+                this.rect = rect;
+                this.hasKey = null;  // null or key color
+                this.hasDoor = null; // null or door color
+                this.isStart = false;
+            }
+        }
+        
+        class MinHeap {
+            constructor() {
+                this.heap = [];
+            }
+            
+            push(item) {
+                this.heap.push(item);
+                this.bubbleUp(this.heap.length - 1);
+            }
+            
+            pop() {
+                if (this.heap.length === 0) return null;
+                if (this.heap.length === 1) return this.heap.pop();
+                
+                const min = this.heap[0];
+                this.heap[0] = this.heap.pop();
+                this.bubbleDown(0);
+                return min;
+            }
+            
+            bubbleUp(idx) {
+                while (idx > 0) {
+                    const parentIdx = Math.floor((idx - 1) / 2);
+                    if (this.heap[idx].distance >= this.heap[parentIdx].distance) break;
+                    [this.heap[idx], this.heap[parentIdx]] = [this.heap[parentIdx], this.heap[idx]];
+                    idx = parentIdx;
+                }
+            }
+            
+            bubbleDown(idx) {
+                while (true) {
+                    let minIdx = idx;
+                    const leftIdx = 2 * idx + 1;
+                    const rightIdx = 2 * idx + 2;
+                    
+                    if (leftIdx < this.heap.length && this.heap[leftIdx].distance < this.heap[minIdx].distance) {
+                        minIdx = leftIdx;
+                    }
+                    if (rightIdx < this.heap.length && this.heap[rightIdx].distance < this.heap[minIdx].distance) {
+                        minIdx = rightIdx;
+                    }
+                    
+                    if (minIdx === idx) break;
+                    [this.heap[idx], this.heap[minIdx]] = [this.heap[minIdx], this.heap[idx]];
+                    idx = minIdx;
+                }
+            }
+            
+            isEmpty() {
+                return this.heap.length === 0;
+            }
+        }
+        
+        // ============================================================================
+        // DUNGEON GENERATOR CLASS
+        // ============================================================================
+        class DungeonGenerator {
+            constructor(config) {
+                this.config = config;
+                this.rng = new SeededRandom(config.seed);
+                this.root = null;
+                this.rooms = [];
+                this.corridors = [];
+                this.graph = new Map(); // adjacency list
+            }
+            
+            // ========================================================================
+            // PHASE 1: BINARY SPACE PARTITIONING
+            // ========================================================================
+            generate() {
+                const rect = new Rectangle(0, 0, this.config.mapSize, this.config.mapSize);
+                this.root = new BSPNode(rect);
+                this.splitNode(this.root, 0);
+                this.createRooms(this.root);
+            }
+            
+            splitNode(node, depth) {
+                if (depth >= this.config.maxDepth) return;
+                
+                const { width, height } = node.rect;
+                const minSize = this.config.minRoomSize * 2;
+                
+                // Can't split if too small
+                if (width < minSize && height < minSize) return;
+                
+                // Decide split direction
+                let splitHorizontally;
+                if (width > height && width >= minSize) {
+                    splitHorizontally = false;
+                } else if (height > width && height >= minSize) {
+                    splitHorizontally = true;
+                } else if (width >= minSize && height >= minSize) {
+                    splitHorizontally = this.rng.next() > 0.5;
+                } else {
+                    return; // Can't split
+                }
+                
+                // Calculate split position
+                if (splitHorizontally) {
+                    const splitMin = Math.floor(height * 0.3);
+                    const splitMax = Math.floor(height * 0.7);
+                    if (splitMax <= splitMin) return;
+                    
+                    const splitPos = this.rng.range(splitMin, splitMax);
+                    
+                    node.left = new BSPNode(
+                        new Rectangle(node.rect.x, node.rect.y, width, splitPos)
+                    );
+                    node.right = new BSPNode(
+                        new Rectangle(node.rect.x, node.rect.y + splitPos, width, height - splitPos)
+                    );
+                } else {
+                    const splitMin = Math.floor(width * 0.3);
+                    const splitMax = Math.floor(width * 0.7);
+                    if (splitMax <= splitMin) return;
+                    
+                    const splitPos = this.rng.range(splitMin, splitMax);
+                    
+                    node.left = new BSPNode(
+                        new Rectangle(node.rect.x, node.rect.y, splitPos, height)
+                    );
+                    node.right = new BSPNode(
+                        new Rectangle(node.rect.x + splitPos, node.rect.y, width - splitPos, height)
+                    );
+                }
+                
+                // Recursively split children
+                this.splitNode(node.left, depth + 1);
+                this.splitNode(node.right, depth + 1);
+            }
+            
+            createRooms(node) {
+                if (node.isLeaf()) {
+                    // Create a room with random insets
+                    const insetX = this.rng.range(5, 15);
+                    const insetY = this.rng.range(5, 15);
+                    const insetW = this.rng.range(5, 15);
+                    const insetH = this.rng.range(5, 15);
+                    
+                    const roomRect = new Rectangle(
+                        node.rect.x + insetX,
+                        node.rect.y + insetY,
+                        node.rect.width - insetX - insetW,
+                        node.rect.height - insetY - insetH
+                    );
+                    
+                    const room = new Room(this.rooms.length, roomRect);
+                    node.room = room;
+                    this.rooms.push(room);
+                } else {
+                    if (node.left) this.createRooms(node.left);
+                    if (node.right) this.createRooms(node.right);
+                }
+            }
+            
+            // ========================================================================
+            // PHASE 2: PRIM'S MINIMUM SPANNING TREE
+            // ========================================================================
+            buildMST() {
+                if (this.rooms.length === 0) return;
+                
+                const visited = new Set();
+                const heap = new MinHeap();
+                
+                // Start from random room
+                const startRoom = this.rng.choice(this.rooms);
+                visited.add(startRoom.id);
+                
+                // Add all edges from start room
+                for (const room of this.rooms) {
+                    if (room.id !== startRoom.id) {
+                        const distance = this.euclideanDistance(startRoom, room);
+                        heap.push({ from: startRoom, to: room, distance });
+                    }
+                }
+                
+                // Build MST
+                while (!heap.isEmpty() && visited.size < this.rooms.length) {
+                    const edge = heap.pop();
+                    
+                    if (visited.has(edge.to.id)) continue;
+                    
+                    // Add edge to MST
+                    this.corridors.push({ from: edge.from, to: edge.to });
+                    visited.add(edge.to.id);
+                    
+                    // Update graph adjacency list
+                    if (!this.graph.has(edge.from.id)) this.graph.set(edge.from.id, []);
+                    if (!this.graph.has(edge.to.id)) this.graph.set(edge.to.id, []);
+                    this.graph.get(edge.from.id).push(edge.to.id);
+                    this.graph.get(edge.to.id).push(edge.from.id);
+                    
+                    // Add edges from newly visited room
+                    for (const room of this.rooms) {
+                        if (!visited.has(room.id)) {
+                            const distance = this.euclideanDistance(edge.to, room);
+                            heap.push({ from: edge.to, to: room, distance });
+                        }
+                    }
+                }
+            }
+            
+            euclideanDistance(room1, room2) {
+                const dx = room1.rect.centerX - room2.rect.centerX;
+                const dy = room1.rect.centerY - room2.rect.centerY;
+                return Math.sqrt(dx * dx + dy * dy);
+            }
+            
+            // ========================================================================
+            // PHASE 3: BACKTRACKING FOR KEY-DOOR PLACEMENT
+            // ========================================================================
+            placeKeysAndDoors(numKeys) {
+                // Place start position in a random room
+                const startRoom = this.rng.choice(this.rooms);
+                startRoom.isStart = true;
+                
+                const colors = ['#ffcc00', '#ff00ff', '#00ffff', '#ff6600', '#00ff00'];
+                const keyColors = colors.slice(0, numKeys);
+                
+                // Try to place each key-door pair
+                for (let i = 0; i < numKeys; i++) {
+                    const color = keyColors[i];
+                    const placed = this.backtrackPlace(startRoom.id, color, new Set());
+                    if (!placed) {
+                        console.warn(`Could not place key-door pair ${i}`);
+                    }
+                }
+            }
+            
+            backtrackPlace(startId, color, attempted) {
+                // Get available rooms (not start, no items yet)
+                const availableRooms = this.rooms.filter(r => 
+                    !r.isStart && r.hasKey === null && r.hasDoor === null && !attempted.has(r.id)
+                );
+                
+                if (availableRooms.length < 2) return false;
+                
+                // Shuffle available rooms
+                const shuffled = [...availableRooms].sort(() => this.rng.next() - 0.5);
+                
+                // Try each room for key
+                for (const keyRoom of shuffled) {
+                    keyRoom.hasKey = color;
+                    
+                    // Try each remaining room for door
+                    for (const doorRoom of shuffled) {
+                        if (doorRoom.id === keyRoom.id) continue;
+                        
+                        doorRoom.hasDoor = color;
+                        
+                        // Check constraint: can we reach door from start without passing through key room?
+                        if (!this.canReachWithoutKey(startId, doorRoom.id, keyRoom.id)) {
+                            // Valid placement!
+                            return true;
+                        }
+                        
+                        doorRoom.hasDoor = null;
+                    }
+                    
+                    keyRoom.hasKey = null;
+                    attempted.add(keyRoom.id);
+                }
+                
+                return false;
+            }
+            
+            canReachWithoutKey(startId, doorId, keyId) {
+                // DFS to check if door is reachable without going through key room
+                const visited = new Set();
+                const stack = [startId];
+                
+                while (stack.length > 0) {
+                    const current = stack.pop();
+                    
+                    if (current === doorId) return true; // Bad: reached door without key
+                    if (current === keyId) continue; // Don't pass through key room
+                    if (visited.has(current)) continue;
+                    
+                    visited.add(current);
+                    
+                    const neighbors = this.graph.get(current) || [];
+                    for (const neighbor of neighbors) {
+                        if (!visited.has(neighbor)) {
+                            stack.push(neighbor);
+                        }
+                    }
+                }
+                
+                return false; // Good: can't reach door without key
+            }
+            
+            // ========================================================================
+            // PHASE 4: GRAPH ANALYSIS (DFS/BFS)
+            // ========================================================================
+            analyzeGraph() {
+                if (this.rooms.length === 0) return { reachable: 0, maxDepth: 0 };
+                
+                // DFS to check reachability
+                const startRoom = this.rooms.find(r => r.isStart);
+                if (!startRoom) return { reachable: 0, maxDepth: 0 };
+                
+                const visited = new Set();
+                this.dfs(startRoom.id, visited);
+                
+                // BFS to compute depths
+                const depths = this.bfs(startRoom.id);
+                const maxDepth = Math.max(...Object.values(depths));
+                
+                return { reachable: visited.size, maxDepth };
+            }
+            
+            dfs(roomId, visited) {
+                visited.add(roomId);
+                const neighbors = this.graph.get(roomId) || [];
+                for (const neighbor of neighbors) {
+                    if (!visited.has(neighbor)) {
+                        this.dfs(neighbor, visited);
+                    }
+                }
+            }
+            
+            bfs(startId) {
+                const depths = {};
+                const queue = [{ id: startId, depth: 0 }];
+                const visited = new Set([startId]);
+                
+                while (queue.length > 0) {
+                    const { id, depth } = queue.shift();
+                    depths[id] = depth;
+                    
+                    const neighbors = this.graph.get(id) || [];
+                    for (const neighbor of neighbors) {
+                        if (!visited.has(neighbor)) {
+                            visited.add(neighbor);
+                            queue.push({ id: neighbor, depth: depth + 1 });
+                        }
+                    }
+                }
+                
+                return depths;
+            }
+        }
+        
+        // ============================================================================
+        // RENDERER
+        // ============================================================================
+        class DungeonRenderer {
+            constructor(canvas) {
+                this.canvas = canvas;
+                this.ctx = canvas.getContext('2d');
+            }
+            
+            clear() {
+                this.ctx.fillStyle = '#000000';
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+            }
+            
+            renderPartitions(node, depth = 0) {
+                if (!node) return;
+                
+                // Draw partition boundary
+                this.ctx.strokeStyle = `rgba(255, 255, 255, ${0.1 - depth * 0.01})`;
+                this.ctx.lineWidth = 1;
+                this.ctx.strokeRect(node.rect.x, node.rect.y, node.rect.width, node.rect.height);
+                
+                if (!node.isLeaf()) {
+                    this.renderPartitions(node.left, depth + 1);
+                    this.renderPartitions(node.right, depth + 1);
+                }
+            }
+            
+            renderRooms(rooms) {
+                for (const room of rooms) {
+                    // Room floor
+                    this.ctx.fillStyle = '#2a2a2a';
+                    this.ctx.fillRect(
+                        room.rect.x, 
+                        room.rect.y, 
+                        room.rect.width, 
+                        room.rect.height
+                    );
+                    
+                    // Room border
+                    this.ctx.strokeStyle = '#444444';
+                    this.ctx.lineWidth = 2;
+                    this.ctx.strokeRect(
+                        room.rect.x, 
+                        room.rect.y, 
+                        room.rect.width, 
+                        room.rect.height
+                    );
+                }
+            }
+            
+            renderCorridors(corridors) {
+                this.ctx.strokeStyle = '#00ff41';
+                this.ctx.lineWidth = 4;
+                this.ctx.shadowColor = '#00ff41';
+                this.ctx.shadowBlur = 10;
+                
+                for (const corridor of corridors) {
+                    const x1 = corridor.from.rect.centerX;
+                    const y1 = corridor.from.rect.centerY;
+                    const x2 = corridor.to.rect.centerX;
+                    const y2 = corridor.to.rect.centerY;
+                    
+                    // L-shaped corridor
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(x1, y1);
+                    this.ctx.lineTo(x1, y2);
+                    this.ctx.lineTo(x2, y2);
+                    this.ctx.stroke();
+                }
+                
+                this.ctx.shadowBlur = 0;
+            }
+            
+            renderItems(rooms) {
+                for (const room of rooms) {
+                    const cx = room.rect.centerX;
+                    const cy = room.rect.centerY;
+                    
+                    // Start position
+                    if (room.isStart) {
+                        this.ctx.fillStyle = '#00d9ff';
+                        this.ctx.shadowColor = '#00d9ff';
+                        this.ctx.shadowBlur = 20;
+                        this.ctx.beginPath();
+                        this.ctx.arc(cx, cy, 8, 0, Math.PI * 2);
+                        this.ctx.fill();
+                        this.ctx.shadowBlur = 0;
+                        
+                        this.ctx.strokeStyle = '#00d9ff';
+                        this.ctx.lineWidth = 2;
+                        this.ctx.beginPath();
+                        this.ctx.arc(cx, cy, 15, 0, Math.PI * 2);
+                        this.ctx.stroke();
+                    }
+                    
+                    // Key
+                    if (room.hasKey) {
+                        this.ctx.fillStyle = room.hasKey;
+                        this.ctx.shadowColor = room.hasKey;
+                        this.ctx.shadowBlur = 15;
+                        this.ctx.beginPath();
+                        this.ctx.arc(cx - 15, cy - 15, 6, 0, Math.PI * 2);
+                        this.ctx.fill();
+                        this.ctx.fillRect(cx - 18, cy - 15, 15, 3);
+                        this.ctx.shadowBlur = 0;
+                    }
+                    
+                    // Door
+                    if (room.hasDoor) {
+                        this.ctx.fillStyle = '#ff0055';
+                        this.ctx.shadowColor = '#ff0055';
+                        this.ctx.shadowBlur = 15;
+                        this.ctx.fillRect(cx + 10, cy + 10, 12, 20);
+                        this.ctx.fillStyle = room.hasDoor;
+                        this.ctx.fillRect(cx + 13, cy + 18, 3, 3);
+                        this.ctx.shadowBlur = 0;
+                    }
+                }
+            }
+            
+            render(dungeon) {
+                this.clear();
+                this.renderPartitions(dungeon.root);
+                this.renderRooms(dungeon.rooms);
+                this.renderCorridors(dungeon.corridors);
+                this.renderItems(dungeon.rooms);
+            }
+        }
+        
+        // ============================================================================
+        // UI CONTROLLER
+        // ============================================================================
+        class UIController {
+            constructor() {
+                this.canvas = document.getElementById('canvas');
+                this.renderer = new DungeonRenderer(this.canvas);
+                this.dungeon = null;
+                
+                this.setupEventListeners();
+            }
+            
+            setupEventListeners() {
+                // Range inputs
+                document.getElementById('mapSize').addEventListener('input', (e) => {
+                    document.getElementById('mapSizeValue').textContent = e.target.value;
+                    this.canvas.width = parseInt(e.target.value);
+                    this.canvas.height = parseInt(e.target.value);
+                });
+                
+                document.getElementById('minRoom').addEventListener('input', (e) => {
+                    document.getElementById('minRoomValue').textContent = e.target.value;
+                });
+                
+                document.getElementById('maxDepth').addEventListener('input', (e) => {
+                    document.getElementById('maxDepthValue').textContent = e.target.value;
+                });
+                
+                document.getElementById('numKeys').addEventListener('input', (e) => {
+                    document.getElementById('numKeysValue').textContent = e.target.value;
+                });
+                
+                // Generate button
+                document.getElementById('generateBtn').addEventListener('click', () => {
+                    this.generateDungeon();
+                });
+                
+                // Export button
+                document.getElementById('exportBtn').addEventListener('click', () => {
+                    this.exportDungeon();
+                });
+            }
+            
+            async generateDungeon() {
+                const startTime = performance.now();
+                
+                // Get config
+                const config = {
+                    mapSize: parseInt(document.getElementById('mapSize').value),
+                    minRoomSize: parseInt(document.getElementById('minRoom').value),
+                    maxDepth: parseInt(document.getElementById('maxDepth').value),
+                    seed: document.getElementById('seed').value || Date.now()
+                };
+                
+                const numKeys = parseInt(document.getElementById('numKeys').value);
+                
+                // Update seed display
+                document.getElementById('seed').value = config.seed;
+                
+                // Phase indicators
+                await this.updatePhase('PHASE 1: BINARY SPACE PARTITIONING', 25);
+                this.dungeon = new DungeonGenerator(config);
+                this.dungeon.generate();
+                this.renderer.render(this.dungeon);
+                await this.sleep(300);
+                
+                await this.updatePhase('PHASE 2: BUILDING MST', 50);
+                this.dungeon.buildMST();
+                this.renderer.render(this.dungeon);
+                await this.sleep(300);
+                
+                await this.updatePhase('PHASE 3: BACKTRACKING (KEY-DOOR)', 75);
+                this.dungeon.placeKeysAndDoors(numKeys);
+                this.renderer.render(this.dungeon);
+                await this.sleep(300);
+                
+                await this.updatePhase('PHASE 4: GRAPH ANALYSIS', 90);
+                const analysis = this.dungeon.analyzeGraph();
+                await this.sleep(300);
+                
+                await this.updatePhase('GENERATION COMPLETE', 100);
+                
+                // Update stats
+                const endTime = performance.now();
+                const timeTaken = ((endTime - startTime) / 1000).toFixed(2);
+                
+                document.getElementById('statRooms').textContent = this.dungeon.rooms.length;
+                document.getElementById('statCorridors').textContent = this.dungeon.corridors.length;
+                document.getElementById('statDepth').textContent = config.maxDepth;
+                document.getElementById('statKeys').textContent = numKeys;
+                document.getElementById('statReachable').textContent = 
+                    `${analysis.reachable}/${this.dungeon.rooms.length}`;
+                document.getElementById('statTime').textContent = `${timeTaken}s`;
+                
+                await this.sleep(1000);
+                await this.updatePhase('READY TO GENERATE', 0);
+            }
+            
+            async updatePhase(text, progress) {
+                document.getElementById('phaseText').textContent = text;
+                document.getElementById('loadingBar').style.width = `${progress}%`;
+            }
+            
+            sleep(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            }
+            
+            exportDungeon() {
+                if (!this.dungeon) {
+                    alert('Generate a dungeon first!');
+                    return;
+                }
+                
+                const exportData = {
+                    seed: this.dungeon.config.seed,
+                    config: this.dungeon.config,
+                    rooms: this.dungeon.rooms.map(r => ({
+                        id: r.id,
+                        x: r.rect.x,
+                        y: r.rect.y,
+                        width: r.rect.width,
+                        height: r.rect.height,
+                        hasKey: r.hasKey,
+                        hasDoor: r.hasDoor,
+                        isStart: r.isStart
+                    })),
+                    corridors: this.dungeon.corridors.map(c => ({
+                        from: c.from.id,
+                        to: c.to.id
+                    })),
+                    graph: Object.fromEntries(this.dungeon.graph)
+                };
+                
+                const json = JSON.stringify(exportData, null, 2);
+                const blob = new Blob([json], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `dungeon-${this.dungeon.config.seed}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+            }
+        }
+        
+        // Initialize
+        const ui = new UIController();
+    </script>
+</body>
+</html>
