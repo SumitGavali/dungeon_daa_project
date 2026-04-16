@@ -1,0 +1,20 @@
+{
+  "name": "dungeon_daa_project",
+  "version": "1.0.0",
+  "main": "src/dungeon.js",
+  "scripts": {
+    "test": "jest --verbose",
+    "test:bsp": "jest tests/bsp.test.js --verbose",
+    "test:mst": "jest tests/mst.test.js --verbose",
+    "test:backtracking": "jest tests/backtracking.test.js --verbose",
+    "test:property": "jest tests/property.test.js --verbose"
+  },
+  "keywords": ["dungeon", "bsp", "mst", "backtracking", "dfs", "bfs", "algorithms"],
+  "author": "",
+  "license": "ISC",
+  "description": "Procedural Dungeon Generator — BSP + Prim's MST + Backtracking CSP + Graph Analysis",
+  "devDependencies": {
+    "fast-check": "^4.6.0",
+    "jest": "^30.3.0"
+  }
+}

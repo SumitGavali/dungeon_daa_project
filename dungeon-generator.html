@@ -20,6 +20,8 @@
             --accent-cyan: #00d9ff;
             --accent-red: #ff0055;
             --accent-yellow: #ffcc00;
+            --accent-purple: #bf5af2;
+            --accent-orange: #ff9500;
             --text-primary: #e6e6e6;
             --text-dim: #666d7a;
             --border-color: #1f2937;
@@ -64,6 +66,11 @@
             98% { transform: translate(2px, -2px); }
             99% { transform: translate(-2px, -2px); }
         }
+
+        @keyframes pulse-ap {
+            0%, 100% { opacity: 0.4; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.3); }
+        }
         
         .subtitle {
             color: var(--text-dim);
@@ -74,7 +81,7 @@
         
         .grid-layout {
             display: grid;
-            grid-template-columns: 1fr 400px;
+            grid-template-columns: 1fr 420px;
             gap: 2rem;
             margin-bottom: 2rem;
         }
@@ -102,6 +109,12 @@
             border: 1px solid var(--accent-green);
             cursor: crosshair;
         }
+
+        canvas.pathmode {
+            cursor: pointer;
+            border-color: var(--accent-purple);
+            box-shadow: 0 0 15px rgba(191,90,242,0.3);
+        }
         
         .controls {
             background: var(--bg-secondary);
@@ -110,10 +123,12 @@
             padding: 1.5rem;
             position: sticky;
             top: 2rem;
+            max-height: 95vh;
+            overflow-y: auto;
         }
         
         .control-group {
-            margin-bottom: 2rem;
+            margin-bottom: 1.5rem;
         }
         
         .control-group:last-child {
@@ -241,6 +256,52 @@
         button.secondary::before {
             background: var(--accent-cyan);
         }
+
+        button.purple {
+            border-color: var(--accent-purple);
+            color: var(--accent-purple);
+            margin-top: 0.5rem;
+        }
+        button.purple::before { background: var(--accent-purple); }
+
+        button.orange {
+            border-color: var(--accent-orange);
+            color: var(--accent-orange);
+            margin-top: 0.5rem;
+        }
+        button.orange::before { background: var(--accent-orange); }
+
+        button.active-toggle {
+            background: rgba(191,90,242,0.15);
+            box-shadow: 0 0 15px rgba(191,90,242,0.3);
+        }
+
+        button.active-toggle-orange {
+            background: rgba(255,149,0,0.15);
+            box-shadow: 0 0 15px rgba(255,149,0,0.3);
+        }
+
+        button:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+        button:disabled:hover::before { left: -100%; }
+        button:disabled:hover { color: inherit; box-shadow: none; }
+
+        .section-divider {
+            border: none;
+            border-top: 1px solid var(--border-color);
+            margin: 1.5rem 0;
+        }
+
+        .section-title {
+            color: var(--accent-green);
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            margin-bottom: 1rem;
+        }
         
         .stats {
             background: #000;
@@ -253,9 +314,9 @@
         .stat-row {
             display: flex;
             justify-content: space-between;
-            padding: 0.5rem 0;
+            padding: 0.4rem 0;
             border-bottom: 1px solid var(--border-color);
-            font-size: 0.75rem;
+            font-size: 0.7rem;
         }
         
         .stat-row:last-child {
@@ -289,6 +350,17 @@
             text-transform: uppercase;
             letter-spacing: 0.1em;
         }
+
+        .path-info {
+            background: #000;
+            border: 1px solid var(--accent-purple);
+            border-radius: 2px;
+            padding: 1rem;
+            margin-top: 1rem;
+            display: none;
+        }
+        .path-info.visible { display: block; }
+        .path-info .stat-row .stat-value { color: var(--accent-purple); }
         
         .legend {
             background: var(--bg-secondary);
@@ -325,6 +397,12 @@
             height: 24px;
             border-radius: 2px;
             border: 1px solid rgba(255,255,255,0.2);
+            flex-shrink: 0;
+        }
+
+        .legend-color.dashed {
+            background: transparent !important;
+            border: 2px dashed var(--accent-orange);
         }
         
         .algorithm-info {
@@ -385,7 +463,7 @@
     <div class="container">
         <header>
             <h1>PROCEDURAL DUNGEON GENERATOR</h1>
-            <div class="subtitle">BSP • Prim's MST • Backtracking • Graph Analysis</div>
+            <div class="subtitle">BSP • Prim's MST • Backtracking • A* Pathfinding • Tarjan's Analysis</div>
         </header>
         
         <div class="grid-layout">
@@ -397,6 +475,7 @@
             </div>
             
             <div class="controls">
+                <!-- Generation Controls -->
                 <div class="control-group">
                     <label class="control-label">
                         Map Size
@@ -435,9 +514,33 @@
                     </label>
                     <input type="range" id="numKeys" min="1" max="5" value="3" step="1">
                 </div>
+
+                <div class="control-group">
+                    <label class="control-label">
+                        Extra Corridors (Loops)
+                        <span class="value-display" id="extraCorridorsValue">0</span>
+                    </label>
+                    <input type="range" id="extraCorridors" min="0" max="10" value="0" step="1">
+                </div>
+
+                <div class="control-group">
+                    <label class="control-label">
+                        Animation Speed
+                        <span class="value-display" id="animSpeedValue">50</span>
+                        <span style="color: var(--text-dim); font-size:0.65rem">ms</span>
+                    </label>
+                    <input type="range" id="animSpeed" min="10" max="300" value="50" step="10">
+                </div>
                 
                 <button id="generateBtn">▶ GENERATE DUNGEON</button>
+                <button class="secondary" id="animateBtn">◉ ANIMATE GENERATION</button>
                 <button class="secondary" id="exportBtn">↓ Export as JSON</button>
+
+                <hr class="section-divider">
+                <div class="section-title">⚡ Advanced Features</div>
+
+                <button class="purple" id="pathModeBtn" disabled>🎯 Path Mode (A*)</button>
+                <button class="orange" id="articulationBtn" disabled>◆ Articulation Points</button>
                 
                 <div class="stats" id="stats">
                     <div class="stat-row">
@@ -447,6 +550,10 @@
                     <div class="stat-row">
                         <span class="stat-label">Corridors (MST)</span>
                         <span class="stat-value" id="statCorridors">—</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Extra Corridors</span>
+                        <span class="stat-value" id="statExtra">—</span>
                     </div>
                     <div class="stat-row">
                         <span class="stat-label">BSP Depth</span>
@@ -461,8 +568,48 @@
                         <span class="stat-value" id="statReachable">—</span>
                     </div>
                     <div class="stat-row">
+                        <span class="stat-label">Cycles Detected</span>
+                        <span class="stat-value" id="statCycles">—</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Key-Door Valid</span>
+                        <span class="stat-value" id="statKeyDoor">—</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Max BFS Depth</span>
+                        <span class="stat-value" id="statMaxDepth">—</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Articulation Pts</span>
+                        <span class="stat-value" id="statAP">—</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Bridges</span>
+                        <span class="stat-value" id="statBridges">—</span>
+                    </div>
+                    <div class="stat-row">
                         <span class="stat-label">Generation Time</span>
                         <span class="stat-value" id="statTime">—</span>
+                    </div>
+                </div>
+
+                <div class="path-info" id="pathInfo">
+                    <div class="section-title" style="color:var(--accent-purple)">🎯 A* Pathfinding</div>
+                    <div class="stat-row">
+                        <span class="stat-label">Path Length</span>
+                        <span class="stat-value" id="pathLength">—</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Rooms Traversed</span>
+                        <span class="stat-value" id="pathRooms">—</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Nodes Explored</span>
+                        <span class="stat-value" id="pathExplored">—</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Target Room</span>
+                        <span class="stat-value" id="pathTarget">—</span>
                     </div>
                 </div>
             </div>
@@ -484,6 +631,10 @@
                     <span>MST Corridors</span>
                 </div>
                 <div class="legend-item">
+                    <div class="legend-color" style="background: rgba(0,255,65,0.3);"></div>
+                    <span>Extra Loop Corridors</span>
+                </div>
+                <div class="legend-item">
                     <div class="legend-color" style="background: var(--accent-cyan);"></div>
                     <span>Start Position</span>
                 </div>
@@ -494,6 +645,18 @@
                 <div class="legend-item">
                     <div class="legend-color" style="background: var(--accent-red);"></div>
                     <span>Locked Doors</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: var(--accent-purple);"></div>
+                    <span>A* Optimal Path</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: var(--accent-orange);"></div>
+                    <span>Articulation Points</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color dashed"></div>
+                    <span>Bridge Corridors</span>
                 </div>
             </div>
         </div>
@@ -527,6 +690,22 @@
                 Detects cycles and validates key-door orderings across all possible traversal paths. 
                 BFS computes shortest path distances for difficulty balancing. Time complexity: <code>O(V + E)</code>.
             </p>
+
+            <h3>Feature: A* Pathfinding</h3>
+            <p>
+                Click any room in Path Mode to find the optimal route from start using A* search.
+                Uses Manhattan distance as the admissible heuristic, guaranteeing the shortest path.
+                Explores fewer nodes than Dijkstra's by directing search toward the goal.
+                Time complexity: <code>O(E log V)</code> with the min-heap open set.
+            </p>
+
+            <h3>Feature: Tarjan's Articulation Points & Bridges</h3>
+            <p>
+                Identifies critical rooms (articulation points) whose removal disconnects the dungeon,
+                and critical corridors (bridges) that are the only connection between subgraphs.
+                Uses Tarjan's DFS-based algorithm with discovery/low-link values.
+                Time complexity: <code>O(V + E)</code>. Most meaningful when extra loop corridors are added.
+            </p>
         </div>
     </div>
     
@@ -541,7 +720,6 @@
             }
             
             next() {
-                // Linear congruential generator
                 this.state = (this.state * 1664525 + 1013904223) % 4294967296;
                 return this.state / 4294967296;
             }
@@ -565,7 +743,6 @@
                 this.width = width;
                 this.height = height;
             }
-            
             get centerX() { return this.x + this.width / 2; }
             get centerY() { return this.y + this.height / 2; }
         }
@@ -577,7 +754,6 @@
                 this.right = null;
                 this.room = null;
             }
-            
             isLeaf() {
                 return this.left === null && this.right === null;
             }
@@ -587,16 +763,14 @@
             constructor(id, rect) {
                 this.id = id;
                 this.rect = rect;
-                this.hasKey = null;  // null or key color
-                this.hasDoor = null; // null or door color
+                this.hasKey = null;
+                this.hasDoor = null;
                 this.isStart = false;
             }
         }
         
         class MinHeap {
-            constructor() {
-                this.heap = [];
-            }
+            constructor() { this.heap = []; }
             
             push(item) {
                 this.heap.push(item);
@@ -606,7 +780,6 @@
             pop() {
                 if (this.heap.length === 0) return null;
                 if (this.heap.length === 1) return this.heap.pop();
-                
                 const min = this.heap[0];
                 this.heap[0] = this.heap.pop();
                 this.bubbleDown(0);
@@ -625,25 +798,16 @@
             bubbleDown(idx) {
                 while (true) {
                     let minIdx = idx;
-                    const leftIdx = 2 * idx + 1;
-                    const rightIdx = 2 * idx + 2;
-                    
-                    if (leftIdx < this.heap.length && this.heap[leftIdx].distance < this.heap[minIdx].distance) {
-                        minIdx = leftIdx;
-                    }
-                    if (rightIdx < this.heap.length && this.heap[rightIdx].distance < this.heap[minIdx].distance) {
-                        minIdx = rightIdx;
-                    }
-                    
+                    const l = 2 * idx + 1, r = 2 * idx + 2;
+                    if (l < this.heap.length && this.heap[l].distance < this.heap[minIdx].distance) minIdx = l;
+                    if (r < this.heap.length && this.heap[r].distance < this.heap[minIdx].distance) minIdx = r;
                     if (minIdx === idx) break;
                     [this.heap[idx], this.heap[minIdx]] = [this.heap[minIdx], this.heap[idx]];
                     idx = minIdx;
                 }
             }
             
-            isEmpty() {
-                return this.heap.length === 0;
-            }
+            isEmpty() { return this.heap.length === 0; }
         }
         
         // ============================================================================
@@ -656,12 +820,15 @@
                 this.root = null;
                 this.rooms = [];
                 this.corridors = [];
-                this.graph = new Map(); // adjacency list
+                this.graph = new Map();
+                this.animSteps = [];        // animation step log
+                this.articulationPoints = new Set();
+                this.bridges = [];
             }
             
-            // ========================================================================
-            // PHASE 1: BINARY SPACE PARTITIONING
-            // ========================================================================
+            // ================================================================
+            // PHASE 1: BSP
+            // ================================================================
             generate() {
                 const rect = new Rectangle(0, 0, this.config.mapSize, this.config.mapSize);
                 this.root = new BSPNode(rect);
@@ -671,246 +838,262 @@
             
             splitNode(node, depth) {
                 if (depth >= this.config.maxDepth) return;
-                
                 const { width, height } = node.rect;
                 const minSize = this.config.minRoomSize * 2;
-                
-                // Can't split if too small
                 if (width < minSize && height < minSize) return;
                 
-                // Decide split direction
-                let splitHorizontally;
-                if (width > height && width >= minSize) {
-                    splitHorizontally = false;
-                } else if (height > width && height >= minSize) {
-                    splitHorizontally = true;
-                } else if (width >= minSize && height >= minSize) {
-                    splitHorizontally = this.rng.next() > 0.5;
-                } else {
-                    return; // Can't split
-                }
+                let splitH;
+                if (width > height && width >= minSize) splitH = false;
+                else if (height > width && height >= minSize) splitH = true;
+                else if (width >= minSize && height >= minSize) splitH = this.rng.next() > 0.5;
+                else return;
                 
-                // Calculate split position
-                if (splitHorizontally) {
-                    const splitMin = Math.floor(height * 0.3);
-                    const splitMax = Math.floor(height * 0.7);
-                    if (splitMax <= splitMin) return;
-                    
-                    const splitPos = this.rng.range(splitMin, splitMax);
-                    
-                    node.left = new BSPNode(
-                        new Rectangle(node.rect.x, node.rect.y, width, splitPos)
-                    );
-                    node.right = new BSPNode(
-                        new Rectangle(node.rect.x, node.rect.y + splitPos, width, height - splitPos)
-                    );
+                if (splitH) {
+                    const sMin = Math.floor(height * 0.3), sMax = Math.floor(height * 0.7);
+                    if (sMax <= sMin) return;
+                    const sp = this.rng.range(sMin, sMax);
+                    node.left = new BSPNode(new Rectangle(node.rect.x, node.rect.y, width, sp));
+                    node.right = new BSPNode(new Rectangle(node.rect.x, node.rect.y + sp, width, height - sp));
                 } else {
-                    const splitMin = Math.floor(width * 0.3);
-                    const splitMax = Math.floor(width * 0.7);
-                    if (splitMax <= splitMin) return;
-                    
-                    const splitPos = this.rng.range(splitMin, splitMax);
-                    
-                    node.left = new BSPNode(
-                        new Rectangle(node.rect.x, node.rect.y, splitPos, height)
-                    );
-                    node.right = new BSPNode(
-                        new Rectangle(node.rect.x + splitPos, node.rect.y, width - splitPos, height)
-                    );
+                    const sMin = Math.floor(width * 0.3), sMax = Math.floor(width * 0.7);
+                    if (sMax <= sMin) return;
+                    const sp = this.rng.range(sMin, sMax);
+                    node.left = new BSPNode(new Rectangle(node.rect.x, node.rect.y, sp, height));
+                    node.right = new BSPNode(new Rectangle(node.rect.x + sp, node.rect.y, width - sp, height));
                 }
+
+                this.animSteps.push({ type: 'bsp-split', left: node.left.rect, right: node.right.rect, depth });
                 
-                // Recursively split children
                 this.splitNode(node.left, depth + 1);
                 this.splitNode(node.right, depth + 1);
             }
             
             createRooms(node) {
                 if (node.isLeaf()) {
-                    // Create a room with random insets
-                    const insetX = this.rng.range(5, 15);
-                    const insetY = this.rng.range(5, 15);
-                    const insetW = this.rng.range(5, 15);
-                    const insetH = this.rng.range(5, 15);
+                    const maxIx = Math.max(1, Math.floor(node.rect.width * 0.2));
+                    const maxIy = Math.max(1, Math.floor(node.rect.height * 0.2));
+                    const ix = this.rng.range(5, Math.max(5, maxIx));
+                    const iy = this.rng.range(5, Math.max(5, maxIy));
+                    const iw = this.rng.range(5, Math.max(5, maxIx));
+                    const ih = this.rng.range(5, Math.max(5, maxIy));
+                    const rw = Math.max(10, node.rect.width - ix - iw);
+                    const rh = Math.max(10, node.rect.height - iy - ih);
                     
-                    const roomRect = new Rectangle(
-                        node.rect.x + insetX,
-                        node.rect.y + insetY,
-                        node.rect.width - insetX - insetW,
-                        node.rect.height - insetY - insetH
-                    );
-                    
+                    const roomRect = new Rectangle(node.rect.x + ix, node.rect.y + iy, rw, rh);
                     const room = new Room(this.rooms.length, roomRect);
                     node.room = room;
                     this.rooms.push(room);
+                    this.animSteps.push({ type: 'room-create', roomId: room.id });
                 } else {
                     if (node.left) this.createRooms(node.left);
                     if (node.right) this.createRooms(node.right);
                 }
             }
             
-            // ========================================================================
-            // PHASE 2: PRIM'S MINIMUM SPANNING TREE
-            // ========================================================================
+            // ================================================================
+            // PHASE 2: PRIM'S MST
+            // ================================================================
             buildMST() {
                 if (this.rooms.length === 0) return;
-                
                 const visited = new Set();
                 const heap = new MinHeap();
-                
-                // Start from random room
                 const startRoom = this.rng.choice(this.rooms);
                 visited.add(startRoom.id);
                 
-                // Add all edges from start room
                 for (const room of this.rooms) {
                     if (room.id !== startRoom.id) {
-                        const distance = this.euclideanDistance(startRoom, room);
-                        heap.push({ from: startRoom, to: room, distance });
+                        heap.push({ from: startRoom, to: room, distance: this.euclideanDistance(startRoom, room) });
                     }
                 }
                 
-                // Build MST
                 while (!heap.isEmpty() && visited.size < this.rooms.length) {
                     const edge = heap.pop();
-                    
                     if (visited.has(edge.to.id)) continue;
                     
-                    // Add edge to MST
-                    this.corridors.push({ from: edge.from, to: edge.to });
+                    this.corridors.push({ from: edge.from, to: edge.to, isExtra: false });
                     visited.add(edge.to.id);
                     
-                    // Update graph adjacency list
                     if (!this.graph.has(edge.from.id)) this.graph.set(edge.from.id, []);
                     if (!this.graph.has(edge.to.id)) this.graph.set(edge.to.id, []);
                     this.graph.get(edge.from.id).push(edge.to.id);
                     this.graph.get(edge.to.id).push(edge.from.id);
                     
-                    // Add edges from newly visited room
+                    this.animSteps.push({ type: 'mst-edge', fromId: edge.from.id, toId: edge.to.id });
+                    
                     for (const room of this.rooms) {
                         if (!visited.has(room.id)) {
-                            const distance = this.euclideanDistance(edge.to, room);
-                            heap.push({ from: edge.to, to: room, distance });
+                            heap.push({ from: edge.to, to: room, distance: this.euclideanDistance(edge.to, room) });
                         }
                     }
                 }
             }
             
-            euclideanDistance(room1, room2) {
-                const dx = room1.rect.centerX - room2.rect.centerX;
-                const dy = room1.rect.centerY - room2.rect.centerY;
+            euclideanDistance(r1, r2) {
+                const dx = r1.rect.centerX - r2.rect.centerX;
+                const dy = r1.rect.centerY - r2.rect.centerY;
                 return Math.sqrt(dx * dx + dy * dy);
             }
+
+            // ================================================================
+            // EXTRA LOOP CORRIDORS
+            // ================================================================
+            addExtraCorridors(count) {
+                if (count <= 0) return 0;
+
+                const mstEdges = new Set();
+                for (const c of this.corridors) {
+                    const key = `${Math.min(c.from.id, c.to.id)}-${Math.max(c.from.id, c.to.id)}`;
+                    mstEdges.add(key);
+                }
+
+                const candidates = [];
+                for (let i = 0; i < this.rooms.length; i++) {
+                    for (let j = i + 1; j < this.rooms.length; j++) {
+                        const key = `${i}-${j}`;
+                        if (!mstEdges.has(key)) {
+                            candidates.push({
+                                from: this.rooms[i], to: this.rooms[j],
+                                distance: this.euclideanDistance(this.rooms[i], this.rooms[j])
+                            });
+                        }
+                    }
+                }
+
+                candidates.sort((a, b) => a.distance - b.distance);
+                const toAdd = Math.min(count, candidates.length);
+
+                for (let i = 0; i < toAdd; i++) {
+                    const e = candidates[i];
+                    this.corridors.push({ from: e.from, to: e.to, isExtra: true });
+                    this.graph.get(e.from.id).push(e.to.id);
+                    this.graph.get(e.to.id).push(e.from.id);
+                    this.animSteps.push({ type: 'extra-edge', fromId: e.from.id, toId: e.to.id });
+                }
+                return toAdd;
+            }
             
-            // ========================================================================
-            // PHASE 3: BACKTRACKING FOR KEY-DOOR PLACEMENT
-            // ========================================================================
+            // ================================================================
+            // PHASE 3: BACKTRACKING
+            // ================================================================
             placeKeysAndDoors(numKeys) {
-                // Place start position in a random room
                 const startRoom = this.rng.choice(this.rooms);
                 startRoom.isStart = true;
+                this.animSteps.push({ type: 'start-place', roomId: startRoom.id });
                 
                 const colors = ['#ffcc00', '#ff00ff', '#00ffff', '#ff6600', '#00ff00'];
                 const keyColors = colors.slice(0, numKeys);
                 
-                // Try to place each key-door pair
                 for (let i = 0; i < numKeys; i++) {
-                    const color = keyColors[i];
-                    const placed = this.backtrackPlace(startRoom.id, color, new Set());
-                    if (!placed) {
-                        console.warn(`Could not place key-door pair ${i}`);
-                    }
+                    const placed = this.backtrackPlace(startRoom.id, keyColors[i], new Set());
+                    if (!placed) console.warn(`Could not place key-door pair ${i}`);
                 }
             }
             
             backtrackPlace(startId, color, attempted) {
-                // Get available rooms (not start, no items yet)
-                const availableRooms = this.rooms.filter(r => 
+                const available = this.rooms.filter(r =>
                     !r.isStart && r.hasKey === null && r.hasDoor === null && !attempted.has(r.id)
                 );
+                if (available.length < 2) return false;
                 
-                if (availableRooms.length < 2) return false;
+                const shuffled = [...available].sort(() => this.rng.next() - 0.5);
                 
-                // Shuffle available rooms
-                const shuffled = [...availableRooms].sort(() => this.rng.next() - 0.5);
-                
-                // Try each room for key
                 for (const keyRoom of shuffled) {
                     keyRoom.hasKey = color;
+                    this.animSteps.push({ type: 'try-key', roomId: keyRoom.id, color });
                     
-                    // Try each remaining room for door
                     for (const doorRoom of shuffled) {
                         if (doorRoom.id === keyRoom.id) continue;
-                        
                         doorRoom.hasDoor = color;
+                        this.animSteps.push({ type: 'try-door', roomId: doorRoom.id, color });
                         
-                        // Check constraint: can we reach door from start without passing through key room?
                         if (!this.canReachWithoutKey(startId, doorRoom.id, keyRoom.id)) {
-                            // Valid placement!
+                            this.animSteps.push({ type: 'place-ok', keyId: keyRoom.id, doorId: doorRoom.id, color });
                             return true;
                         }
                         
                         doorRoom.hasDoor = null;
+                        this.animSteps.push({ type: 'backtrack-door', roomId: doorRoom.id });
                     }
                     
                     keyRoom.hasKey = null;
                     attempted.add(keyRoom.id);
+                    this.animSteps.push({ type: 'backtrack-key', roomId: keyRoom.id });
                 }
-                
                 return false;
             }
             
             canReachWithoutKey(startId, doorId, keyId) {
-                // DFS to check if door is reachable without going through key room
                 const visited = new Set();
                 const stack = [startId];
-                
                 while (stack.length > 0) {
-                    const current = stack.pop();
-                    
-                    if (current === doorId) return true; // Bad: reached door without key
-                    if (current === keyId) continue; // Don't pass through key room
-                    if (visited.has(current)) continue;
-                    
-                    visited.add(current);
-                    
-                    const neighbors = this.graph.get(current) || [];
-                    for (const neighbor of neighbors) {
-                        if (!visited.has(neighbor)) {
-                            stack.push(neighbor);
-                        }
+                    const cur = stack.pop();
+                    if (cur === doorId) return true;
+                    if (cur === keyId) continue;
+                    if (visited.has(cur)) continue;
+                    visited.add(cur);
+                    for (const n of (this.graph.get(cur) || [])) {
+                        if (!visited.has(n)) stack.push(n);
                     }
                 }
-                
-                return false; // Good: can't reach door without key
+                return false;
             }
             
-            // ========================================================================
-            // PHASE 4: GRAPH ANALYSIS (DFS/BFS)
-            // ========================================================================
+            // ================================================================
+            // PHASE 4: GRAPH ANALYSIS
+            // ================================================================
             analyzeGraph() {
-                if (this.rooms.length === 0) return { reachable: 0, maxDepth: 0 };
+                const result = { reachable: 0, maxDepth: 0, cycles: 0, keyDoorValid: true };
+                if (this.rooms.length === 0) return result;
                 
-                // DFS to check reachability
                 const startRoom = this.rooms.find(r => r.isStart);
-                if (!startRoom) return { reachable: 0, maxDepth: 0 };
+                if (!startRoom) return result;
                 
                 const visited = new Set();
                 this.dfs(startRoom.id, visited);
+                result.reachable = visited.size;
+                result.cycles = this.detectCycles();
                 
-                // BFS to compute depths
                 const depths = this.bfs(startRoom.id);
-                const maxDepth = Math.max(...Object.values(depths));
+                result.maxDepth = Math.max(...Object.values(depths));
+                result.keyDoorValid = this.validateKeyDoorOrdering(startRoom.id);
                 
-                return { reachable: visited.size, maxDepth };
+                return result;
+            }
+            
+            detectCycles() {
+                const visited = new Set();
+                let count = 0;
+                for (const room of this.rooms) {
+                    if (!visited.has(room.id)) count += this.dfsCycleDetect(room.id, -1, visited);
+                }
+                return count;
+            }
+            
+            dfsCycleDetect(nodeId, parentId, visited) {
+                visited.add(nodeId);
+                let cycles = 0;
+                for (const n of (this.graph.get(nodeId) || [])) {
+                    if (!visited.has(n)) cycles += this.dfsCycleDetect(n, nodeId, visited);
+                    else if (n !== parentId) cycles++;
+                }
+                return cycles;
+            }
+            
+            validateKeyDoorOrdering(startId) {
+                const keys = this.rooms.filter(r => r.hasKey !== null);
+                const doors = this.rooms.filter(r => r.hasDoor !== null);
+                for (const door of doors) {
+                    const key = keys.find(k => k.hasKey === door.hasDoor);
+                    if (!key) return false;
+                    if (this.canReachWithoutKey(startId, door.id, key.id)) return false;
+                }
+                return true;
             }
             
             dfs(roomId, visited) {
                 visited.add(roomId);
-                const neighbors = this.graph.get(roomId) || [];
-                for (const neighbor of neighbors) {
-                    if (!visited.has(neighbor)) {
-                        this.dfs(neighbor, visited);
-                    }
+                for (const n of (this.graph.get(roomId) || [])) {
+                    if (!visited.has(n)) this.dfs(n, visited);
                 }
             }
             
@@ -918,21 +1101,118 @@
                 const depths = {};
                 const queue = [{ id: startId, depth: 0 }];
                 const visited = new Set([startId]);
-                
                 while (queue.length > 0) {
                     const { id, depth } = queue.shift();
                     depths[id] = depth;
-                    
-                    const neighbors = this.graph.get(id) || [];
-                    for (const neighbor of neighbors) {
-                        if (!visited.has(neighbor)) {
-                            visited.add(neighbor);
-                            queue.push({ id: neighbor, depth: depth + 1 });
+                    for (const n of (this.graph.get(id) || [])) {
+                        if (!visited.has(n)) {
+                            visited.add(n);
+                            queue.push({ id: n, depth: depth + 1 });
                         }
                     }
                 }
-                
                 return depths;
+            }
+
+            // ================================================================
+            // FEATURE: A* PATHFINDING
+            // ================================================================
+            aStarPath(startId, goalId) {
+                const openSet = new MinHeap();
+                const cameFrom = new Map();
+                const gScore = new Map();
+                let explored = 0;
+
+                for (const r of this.rooms) {
+                    gScore.set(r.id, Infinity);
+                }
+                gScore.set(startId, 0);
+
+                openSet.push({ id: startId, distance: this.heuristic(startId, goalId) });
+                const closedSet = new Set();
+
+                while (!openSet.isEmpty()) {
+                    const current = openSet.pop();
+                    if (closedSet.has(current.id)) continue;
+
+                    explored++;
+
+                    if (current.id === goalId) {
+                        const path = [];
+                        let c = goalId;
+                        while (c !== undefined) {
+                            path.unshift(c);
+                            c = cameFrom.get(c);
+                        }
+                        return { path, explored, cost: gScore.get(goalId) };
+                    }
+
+                    closedSet.add(current.id);
+
+                    for (const neighborId of (this.graph.get(current.id) || [])) {
+                        if (closedSet.has(neighborId)) continue;
+
+                        const tentativeG = gScore.get(current.id) + this.getEdgeWeight(current.id, neighborId);
+                        if (tentativeG < gScore.get(neighborId)) {
+                            cameFrom.set(neighborId, current.id);
+                            gScore.set(neighborId, tentativeG);
+                            openSet.push({ id: neighborId, distance: tentativeG + this.heuristic(neighborId, goalId) });
+                        }
+                    }
+                }
+
+                return null;
+            }
+
+            heuristic(id1, id2) {
+                const r1 = this.rooms[id1].rect, r2 = this.rooms[id2].rect;
+                return Math.abs(r1.centerX - r2.centerX) + Math.abs(r1.centerY - r2.centerY);
+            }
+
+            getEdgeWeight(id1, id2) {
+                return this.euclideanDistance(this.rooms[id1], this.rooms[id2]);
+            }
+
+            // ================================================================
+            // FEATURE: TARJAN'S ARTICULATION POINTS & BRIDGES
+            // ================================================================
+            findArticulationPoints() {
+                const n = this.rooms.length;
+                const disc = new Array(n).fill(-1);
+                const low = new Array(n).fill(-1);
+                const parent = new Array(n).fill(-1);
+                this.articulationPoints = new Set();
+                this.bridges = [];
+                let timer = 0;
+
+                const dfs = (u) => {
+                    let children = 0;
+                    disc[u] = low[u] = timer++;
+                    
+                    for (const v of (this.graph.get(u) || [])) {
+                        if (disc[v] === -1) {
+                            children++;
+                            parent[v] = u;
+                            dfs(v);
+                            low[u] = Math.min(low[u], low[v]);
+
+                            // Root with 2+ children
+                            if (parent[u] === -1 && children > 1) this.articulationPoints.add(u);
+                            // Non-root with low[v] >= disc[u]
+                            if (parent[u] !== -1 && low[v] >= disc[u]) this.articulationPoints.add(u);
+                            // Bridge
+                            if (low[v] > disc[u]) this.bridges.push([u, v]);
+                        } else if (v !== parent[u]) {
+                            low[u] = Math.min(low[u], disc[v]);
+                        }
+                    }
+                };
+
+                for (let i = 0; i < n; i++) {
+                    if (disc[i] === -1) dfs(i);
+                }
+
+                return { articulationPoints: this.articulationPoints, bridges: this.bridges };
             }
         }
         
@@ -952,12 +1232,9 @@
             
             renderPartitions(node, depth = 0) {
                 if (!node) return;
-                
-                // Draw partition boundary
                 this.ctx.strokeStyle = `rgba(255, 255, 255, ${0.1 - depth * 0.01})`;
                 this.ctx.lineWidth = 1;
                 this.ctx.strokeRect(node.rect.x, node.rect.y, node.rect.width, node.rect.height);
-                
                 if (!node.isLeaf()) {
                     this.renderPartitions(node.left, depth + 1);
                     this.renderPartitions(node.right, depth + 1);
@@ -966,56 +1243,47 @@
             
             renderRooms(rooms) {
                 for (const room of rooms) {
-                    // Room floor
                     this.ctx.fillStyle = '#2a2a2a';
-                    this.ctx.fillRect(
-                        room.rect.x, 
-                        room.rect.y, 
-                        room.rect.width, 
-                        room.rect.height
-                    );
-                    
-                    // Room border
+                    this.ctx.fillRect(room.rect.x, room.rect.y, room.rect.width, room.rect.height);
                     this.ctx.strokeStyle = '#444444';
                     this.ctx.lineWidth = 2;
-                    this.ctx.strokeRect(
-                        room.rect.x, 
-                        room.rect.y, 
-                        room.rect.width, 
-                        room.rect.height
-                    );
+                    this.ctx.strokeRect(room.rect.x, room.rect.y, room.rect.width, room.rect.height);
                 }
             }
             
             renderCorridors(corridors) {
-                this.ctx.strokeStyle = '#00ff41';
-                this.ctx.lineWidth = 4;
-                this.ctx.shadowColor = '#00ff41';
-                this.ctx.shadowBlur = 10;
-                
                 for (const corridor of corridors) {
-                    const x1 = corridor.from.rect.centerX;
-                    const y1 = corridor.from.rect.centerY;
-                    const x2 = corridor.to.rect.centerX;
-                    const y2 = corridor.to.rect.centerY;
+                    const x1 = corridor.from.rect.centerX, y1 = corridor.from.rect.centerY;
+                    const x2 = corridor.to.rect.centerX, y2 = corridor.to.rect.centerY;
+
+                    if (corridor.isExtra) {
+                        this.ctx.strokeStyle = 'rgba(0, 255, 65, 0.3)';
+                        this.ctx.lineWidth = 2;
+                        this.ctx.shadowColor = 'transparent';
+                        this.ctx.shadowBlur = 0;
+                        this.ctx.setLineDash([6, 4]);
+                    } else {
+                        this.ctx.strokeStyle = '#00ff41';
+                        this.ctx.lineWidth = 4;
+                        this.ctx.shadowColor = '#00ff41';
+                        this.ctx.shadowBlur = 10;
+                        this.ctx.setLineDash([]);
+                    }
                     
-                    // L-shaped corridor
                     this.ctx.beginPath();
                     this.ctx.moveTo(x1, y1);
                     this.ctx.lineTo(x1, y2);
                     this.ctx.lineTo(x2, y2);
                     this.ctx.stroke();
                 }
-                
                 this.ctx.shadowBlur = 0;
+                this.ctx.setLineDash([]);
             }
             
             renderItems(rooms) {
                 for (const room of rooms) {
-                    const cx = room.rect.centerX;
-                    const cy = room.rect.centerY;
+                    const cx = room.rect.centerX, cy = room.rect.centerY;
                     
-                    // Start position
                     if (room.isStart) {
                         this.ctx.fillStyle = '#00d9ff';
                         this.ctx.shadowColor = '#00d9ff';
@@ -1024,7 +1292,6 @@
                         this.ctx.arc(cx, cy, 8, 0, Math.PI * 2);
                         this.ctx.fill();
                         this.ctx.shadowBlur = 0;
-                        
                         this.ctx.strokeStyle = '#00d9ff';
                         this.ctx.lineWidth = 2;
                         this.ctx.beginPath();
@@ -1032,7 +1299,6 @@
                         this.ctx.stroke();
                     }
                     
-                    // Key
                     if (room.hasKey) {
                         this.ctx.fillStyle = room.hasKey;
                         this.ctx.shadowColor = room.hasKey;
@@ -1044,7 +1310,6 @@
                         this.ctx.shadowBlur = 0;
                     }
                     
-                    // Door
                     if (room.hasDoor) {
                         this.ctx.fillStyle = '#ff0055';
                         this.ctx.shadowColor = '#ff0055';
@@ -1056,13 +1321,171 @@
                     }
                 }
             }
+
+            // A* PATH RENDERING
+            renderPath(path, rooms) {
+                if (!path || path.length < 2) return;
+                
+                this.ctx.strokeStyle = '#bf5af2';
+                this.ctx.lineWidth = 6;
+                this.ctx.shadowColor = '#bf5af2';
+                this.ctx.shadowBlur = 20;
+                this.ctx.setLineDash([]);
+                this.ctx.lineCap = 'round';
+                this.ctx.lineJoin = 'round';
+
+                this.ctx.beginPath();
+                const first = rooms[path[0]];
+                this.ctx.moveTo(first.rect.centerX, first.rect.centerY);
+                
+                for (let i = 1; i < path.length; i++) {
+                    const r = rooms[path[i]];
+                    const prev = rooms[path[i-1]];
+                    // L-shaped path following corridors
+                    this.ctx.lineTo(prev.rect.centerX, r.rect.centerY);
+                    this.ctx.lineTo(r.rect.centerX, r.rect.centerY);
+                }
+                this.ctx.stroke();
+                this.ctx.shadowBlur = 0;
+
+                // Draw path nodes
+                for (let i = 0; i < path.length; i++) {
+                    const r = rooms[path[i]];
+                    const cx = r.rect.centerX, cy = r.rect.centerY;
+                    
+                    this.ctx.fillStyle = '#bf5af2';
+                    this.ctx.shadowColor = '#bf5af2';
+                    this.ctx.shadowBlur = 15;
+                    this.ctx.beginPath();
+                    this.ctx.arc(cx, cy, 5, 0, Math.PI * 2);
+                    this.ctx.fill();
+                    this.ctx.shadowBlur = 0;
+
+                    // Label
+                    this.ctx.fillStyle = '#fff';
+                    this.ctx.font = '10px JetBrains Mono';
+                    this.ctx.textAlign = 'center';
+                    this.ctx.fillText(i, cx, cy - 12);
+                }
+
+                // Highlight goal with crosshair
+                const goal = rooms[path[path.length - 1]];
+                const gx = goal.rect.centerX, gy = goal.rect.centerY;
+                this.ctx.strokeStyle = '#bf5af2';
+                this.ctx.lineWidth = 2;
+                this.ctx.beginPath();
+                this.ctx.arc(gx, gy, 18, 0, Math.PI * 2);
+                this.ctx.stroke();
+                this.ctx.beginPath();
+                this.ctx.moveTo(gx - 24, gy); this.ctx.lineTo(gx + 24, gy);
+                this.ctx.moveTo(gx, gy - 24); this.ctx.lineTo(gx, gy + 24);
+                this.ctx.stroke();
+            }
+
+            // ARTICULATION POINTS RENDERING
+            renderArticulationPoints(points, rooms) {
+                for (const id of points) {
+                    const r = rooms[id];
+                    const cx = r.rect.centerX, cy = r.rect.centerY;
+
+                    // Pulsing outer ring
+                    this.ctx.strokeStyle = '#ff9500';
+                    this.ctx.lineWidth = 3;
+                    this.ctx.shadowColor = '#ff9500';
+                    this.ctx.shadowBlur = 20;
+                    this.ctx.beginPath();
+                    this.ctx.arc(cx, cy, 20, 0, Math.PI * 2);
+                    this.ctx.stroke();
+
+                    // Inner diamond
+                    this.ctx.fillStyle = '#ff9500';
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(cx, cy - 8);
+                    this.ctx.lineTo(cx + 6, cy);
+                    this.ctx.lineTo(cx, cy + 8);
+                    this.ctx.lineTo(cx - 6, cy);
+                    this.ctx.closePath();
+                    this.ctx.fill();
+                    this.ctx.shadowBlur = 0;
+
+                    // Label
+                    this.ctx.fillStyle = '#ff9500';
+                    this.ctx.font = 'bold 9px JetBrains Mono';
+                    this.ctx.textAlign = 'center';
+                    this.ctx.fillText('AP', cx, cy - 25);
+                }
+            }
+
+            // BRIDGE RENDERING
+            renderBridges(bridges, rooms) {
+                for (const [u, v] of bridges) {
+                    const r1 = rooms[u], r2 = rooms[v];
+                    const x1 = r1.rect.centerX, y1 = r1.rect.centerY;
+                    const x2 = r2.rect.centerX, y2 = r2.rect.centerY;
+
+                    this.ctx.strokeStyle = '#ff9500';
+                    this.ctx.lineWidth = 5;
+                    this.ctx.shadowColor = '#ff9500';
+                    this.ctx.shadowBlur = 15;
+                    this.ctx.setLineDash([8, 5]);
+
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(x1, y1);
+                    this.ctx.lineTo(x1, y2);
+                    this.ctx.lineTo(x2, y2);
+                    this.ctx.stroke();
+
+                    this.ctx.shadowBlur = 0;
+                    this.ctx.setLineDash([]);
+
+                    // Bridge label
+                    const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+                    this.ctx.fillStyle = '#ff9500';
+                    this.ctx.font = 'bold 8px JetBrains Mono';
+                    this.ctx.textAlign = 'center';
+                    this.ctx.fillText('BRIDGE', mx, my - 8);
+                }
+            }
+
+            // ANIMATION HIGHLIGHT
+            renderHighlightRoom(room, color) {
+                const r = room.rect;
+                this.ctx.strokeStyle = color;
+                this.ctx.lineWidth = 3;
+                this.ctx.shadowColor = color;
+                this.ctx.shadowBlur = 25;
+                this.ctx.strokeRect(r.x - 2, r.y - 2, r.width + 4, r.height + 4);
+                this.ctx.shadowBlur = 0;
+            }
+
+            renderHighlightCorridor(from, to, color) {
+                this.ctx.strokeStyle = color;
+                this.ctx.lineWidth = 6;
+                this.ctx.shadowColor = color;
+                this.ctx.shadowBlur = 20;
+                this.ctx.beginPath();
+                this.ctx.moveTo(from.rect.centerX, from.rect.centerY);
+                this.ctx.lineTo(from.rect.centerX, to.rect.centerY);
+                this.ctx.lineTo(to.rect.centerX, to.rect.centerY);
+                this.ctx.stroke();
+                this.ctx.shadowBlur = 0;
+            }
             
-            render(dungeon) {
+            render(dungeon, options = {}) {
                 this.clear();
                 this.renderPartitions(dungeon.root);
                 this.renderRooms(dungeon.rooms);
                 this.renderCorridors(dungeon.corridors);
                 this.renderItems(dungeon.rooms);
+
+                if (options.showArticulation && dungeon.articulationPoints.size > 0) {
+                    this.renderBridges(dungeon.bridges, dungeon.rooms);
+                    this.renderArticulationPoints(dungeon.articulationPoints, dungeon.rooms);
+                }
+
+                if (options.path) {
+                    this.renderPath(options.path, dungeon.rooms);
+                }
             }
         }
         
@@ -1074,94 +1497,434 @@
                 this.canvas = document.getElementById('canvas');
                 this.renderer = new DungeonRenderer(this.canvas);
                 this.dungeon = null;
+                this.isAnimating = false;
+                this.pathMode = false;
+                this.showArticulation = false;
+                this.currentPath = null;
                 
                 this.setupEventListeners();
             }
             
             setupEventListeners() {
                 // Range inputs
+                const rangeBindings = [
+                    ['mapSize', 'mapSizeValue'],
+                    ['minRoom', 'minRoomValue'],
+                    ['maxDepth', 'maxDepthValue'],
+                    ['numKeys', 'numKeysValue'],
+                    ['extraCorridors', 'extraCorridorsValue'],
+                    ['animSpeed', 'animSpeedValue']
+                ];
+                
+                for (const [inputId, displayId] of rangeBindings) {
+                    document.getElementById(inputId).addEventListener('input', (e) => {
+                        document.getElementById(displayId).textContent = e.target.value;
+                    });
+                }
+
+                // Map size also resizes canvas
                 document.getElementById('mapSize').addEventListener('input', (e) => {
-                    document.getElementById('mapSizeValue').textContent = e.target.value;
                     this.canvas.width = parseInt(e.target.value);
                     this.canvas.height = parseInt(e.target.value);
                 });
                 
-                document.getElementById('minRoom').addEventListener('input', (e) => {
-                    document.getElementById('minRoomValue').textContent = e.target.value;
-                });
-                
-                document.getElementById('maxDepth').addEventListener('input', (e) => {
-                    document.getElementById('maxDepthValue').textContent = e.target.value;
-                });
-                
-                document.getElementById('numKeys').addEventListener('input', (e) => {
-                    document.getElementById('numKeysValue').textContent = e.target.value;
-                });
-                
-                // Generate button
-                document.getElementById('generateBtn').addEventListener('click', () => {
-                    this.generateDungeon();
-                });
-                
-                // Export button
-                document.getElementById('exportBtn').addEventListener('click', () => {
-                    this.exportDungeon();
-                });
+                document.getElementById('generateBtn').addEventListener('click', () => this.generateDungeon());
+                document.getElementById('animateBtn').addEventListener('click', () => this.animateGeneration());
+                document.getElementById('exportBtn').addEventListener('click', () => this.exportDungeon());
+
+                // Advanced feature toggles
+                document.getElementById('pathModeBtn').addEventListener('click', () => this.togglePathMode());
+                document.getElementById('articulationBtn').addEventListener('click', () => this.toggleArticulation());
+
+                // Canvas click for A* pathfinding
+                this.canvas.addEventListener('click', (e) => this.handleCanvasClick(e));
             }
-            
-            async generateDungeon() {
-                const startTime = performance.now();
-                
-                // Get config
-                const config = {
+
+            getConfig() {
+                return {
                     mapSize: parseInt(document.getElementById('mapSize').value),
                     minRoomSize: parseInt(document.getElementById('minRoom').value),
                     maxDepth: parseInt(document.getElementById('maxDepth').value),
                     seed: document.getElementById('seed').value || Date.now()
                 };
+            }
+            
+            async generateDungeon() {
+                if (this.isAnimating) return;
+                const startTime = performance.now();
                 
+                const config = this.getConfig();
                 const numKeys = parseInt(document.getElementById('numKeys').value);
-                
-                // Update seed display
+                const extraCorr = parseInt(document.getElementById('extraCorridors').value);
                 document.getElementById('seed').value = config.seed;
                 
-                // Phase indicators
-                await this.updatePhase('PHASE 1: BINARY SPACE PARTITIONING', 25);
+                await this.updatePhase('PHASE 1: BINARY SPACE PARTITIONING', 20);
                 this.dungeon = new DungeonGenerator(config);
                 this.dungeon.generate();
                 this.renderer.render(this.dungeon);
-                await this.sleep(300);
+                await this.sleep(200);
                 
-                await this.updatePhase('PHASE 2: BUILDING MST', 50);
+                await this.updatePhase('PHASE 2: BUILDING MST', 40);
                 this.dungeon.buildMST();
                 this.renderer.render(this.dungeon);
-                await this.sleep(300);
+                await this.sleep(200);
+
+                let addedExtra = 0;
+                if (extraCorr > 0) {
+                    await this.updatePhase('ADDING EXTRA CORRIDORS', 50);
+                    addedExtra = this.dungeon.addExtraCorridors(extraCorr);
+                    this.renderer.render(this.dungeon);
+                    await this.sleep(200);
+                }
                 
-                await this.updatePhase('PHASE 3: BACKTRACKING (KEY-DOOR)', 75);
+                await this.updatePhase('PHASE 3: BACKTRACKING (KEY-DOOR)', 65);
                 this.dungeon.placeKeysAndDoors(numKeys);
                 this.renderer.render(this.dungeon);
-                await this.sleep(300);
+                await this.sleep(200);
                 
-                await this.updatePhase('PHASE 4: GRAPH ANALYSIS', 90);
+                await this.updatePhase('PHASE 4: GRAPH ANALYSIS', 80);
                 const analysis = this.dungeon.analyzeGraph();
-                await this.sleep(300);
+                
+                await this.updatePhase('TARJAN\'S ANALYSIS', 90);
+                const tarjan = this.dungeon.findArticulationPoints();
+                await this.sleep(200);
                 
                 await this.updatePhase('GENERATION COMPLETE', 100);
                 
-                // Update stats
+                this.updateStats(config, numKeys, addedExtra, analysis, tarjan, startTime);
+                this.enableFeatureButtons();
+                this.currentPath = null;
+                this.showArticulation = false;
+                document.getElementById('articulationBtn').classList.remove('active-toggle-orange');
+                document.getElementById('pathInfo').classList.remove('visible');
+                
+                await this.sleep(800);
+                await this.updatePhase('READY — CLICK ROOMS IN PATH MODE', 0);
+            }
+
+            // ================================================================
+            // ANIMATED GENERATION
+            // ================================================================
+            async animateGeneration() {
+                if (this.isAnimating) return;
+                this.isAnimating = true;
+                this.disableButtons(true);
+
+                const startTime = performance.now();
+                const config = this.getConfig();
+                const numKeys = parseInt(document.getElementById('numKeys').value);
+                const extraCorr = parseInt(document.getElementById('extraCorridors').value);
+                const speed = parseInt(document.getElementById('animSpeed').value);
+                document.getElementById('seed').value = config.seed;
+
+                // Run full generation to collect animation steps
+                this.dungeon = new DungeonGenerator(config);
+                this.dungeon.generate();
+                this.dungeon.buildMST();
+                const addedExtra = this.dungeon.addExtraCorridors(extraCorr);
+                this.dungeon.placeKeysAndDoors(numKeys);
+
+                const steps = this.dungeon.animSteps;
+                
+                // Reset dungeon state for replay
+                const replayDungeon = new DungeonGenerator(config);
+                replayDungeon.generate();
+                
+                // PHASE 1: Animate BSP splits
+                await this.updatePhase('ANIMATING: BSP PARTITIONING', 10);
+                const bspSteps = steps.filter(s => s.type === 'bsp-split');
+                
+                this.renderer.clear();
+                for (let i = 0; i < bspSteps.length; i++) {
+                    const s = bspSteps[i];
+                    this.ctx = this.renderer.ctx;
+                    // Draw split line with glow
+                    this.renderer.ctx.strokeStyle = `hsl(${120 + s.depth * 30}, 100%, 50%)`;
+                    this.renderer.ctx.lineWidth = 2;
+                    this.renderer.ctx.shadowColor = this.renderer.ctx.strokeStyle;
+                    this.renderer.ctx.shadowBlur = 15;
+                    this.renderer.ctx.strokeRect(s.left.x, s.left.y, s.left.width, s.left.height);
+                    this.renderer.ctx.strokeRect(s.right.x, s.right.y, s.right.width, s.right.height);
+                    this.renderer.ctx.shadowBlur = 0;
+                    await this.updatePhase(`BSP SPLIT ${i+1}/${bspSteps.length}`, 10 + (i/bspSteps.length) * 15);
+                    await this.sleep(speed);
+                }
+
+                // Show rooms appearing
+                await this.updatePhase('ANIMATING: ROOM CREATION', 25);
+                this.renderer.clear();
+                this.renderer.renderPartitions(this.dungeon.root);
+                for (let i = 0; i < this.dungeon.rooms.length; i++) {
+                    const room = this.dungeon.rooms[i];
+                    this.renderer.ctx.fillStyle = '#2a2a2a';
+                    this.renderer.ctx.fillRect(room.rect.x, room.rect.y, room.rect.width, room.rect.height);
+                    this.renderer.ctx.strokeStyle = '#00ff41';
+                    this.renderer.ctx.lineWidth = 2;
+                    this.renderer.ctx.shadowColor = '#00ff41';
+                    this.renderer.ctx.shadowBlur = 20;
+                    this.renderer.ctx.strokeRect(room.rect.x, room.rect.y, room.rect.width, room.rect.height);
+                    this.renderer.ctx.shadowBlur = 0;
+                    await this.sleep(speed);
+                }
+                await this.sleep(speed * 3);
+
+                // PHASE 2: Animate MST edges
+                await this.updatePhase('ANIMATING: PRIM\'S MST', 40);
+                this.renderer.clear();
+                this.renderer.renderPartitions(this.dungeon.root);
+                this.renderer.renderRooms(this.dungeon.rooms);
+
+                const mstSteps = steps.filter(s => s.type === 'mst-edge');
+                const mstCorridors = this.dungeon.corridors.filter(c => !c.isExtra);
+                for (let i = 0; i < mstSteps.length; i++) {
+                    const c = mstCorridors[i];
+                    if (!c) continue;
+                    // Flash the new edge
+                    this.renderer.renderHighlightCorridor(c.from, c.to, '#ffffff');
+                    await this.sleep(speed);
+                    // Redraw normally
+                    this.renderer.clear();
+                    this.renderer.renderPartitions(this.dungeon.root);
+                    this.renderer.renderRooms(this.dungeon.rooms);
+                    // Render corridors up to this point
+                    for (let j = 0; j <= i; j++) {
+                        const cc = mstCorridors[j];
+                        this.renderer.ctx.strokeStyle = '#00ff41';
+                        this.renderer.ctx.lineWidth = 4;
+                        this.renderer.ctx.shadowColor = '#00ff41';
+                        this.renderer.ctx.shadowBlur = 10;
+                        this.renderer.ctx.beginPath();
+                        this.renderer.ctx.moveTo(cc.from.rect.centerX, cc.from.rect.centerY);
+                        this.renderer.ctx.lineTo(cc.from.rect.centerX, cc.to.rect.centerY);
+                        this.renderer.ctx.lineTo(cc.to.rect.centerX, cc.to.rect.centerY);
+                        this.renderer.ctx.stroke();
+                        this.renderer.ctx.shadowBlur = 0;
+                    }
+                    await this.updatePhase(`MST EDGE ${i+1}/${mstSteps.length}`, 40 + (i/mstSteps.length) * 20);
+                }
+
+                // Extra corridors
+                const extraSteps = steps.filter(s => s.type === 'extra-edge');
+                if (extraSteps.length) {
+                    await this.updatePhase('ANIMATING: LOOP CORRIDORS', 60);
+                    for (const s of extraSteps) {
+                        const from = this.dungeon.rooms[s.fromId], to = this.dungeon.rooms[s.toId];
+                        this.renderer.renderHighlightCorridor(from, to, '#ff9500');
+                        await this.sleep(speed * 3);
+                    }
+                }
+
+                // PHASE 3: Animate backtracking
+                await this.updatePhase('ANIMATING: BACKTRACKING', 70);
+                this.renderer.render(this.dungeon, { showArticulation: false });
+                // Remove items for replay
+                const btSteps = steps.filter(s => 
+                    ['try-key','try-door','backtrack-key','backtrack-door','place-ok','start-place'].includes(s.type)
+                );
+                
+                for (const s of btSteps) {
+                    if (s.type === 'start-place') {
+                        this.renderer.renderHighlightRoom(this.dungeon.rooms[s.roomId], '#00d9ff');
+                        await this.sleep(speed * 2);
+                    } else if (s.type === 'try-key') {
+                        this.renderer.renderHighlightRoom(this.dungeon.rooms[s.roomId], s.color);
+                        await this.sleep(speed);
+                    } else if (s.type === 'try-door') {
+                        this.renderer.renderHighlightRoom(this.dungeon.rooms[s.roomId], '#ff0055');
+                        await this.sleep(speed);
+                    } else if (s.type === 'backtrack-key' || s.type === 'backtrack-door') {
+                        this.renderer.renderHighlightRoom(this.dungeon.rooms[s.roomId], '#330000');
+                        await this.sleep(speed / 2);
+                    } else if (s.type === 'place-ok') {
+                        this.renderer.renderHighlightRoom(this.dungeon.rooms[s.keyId], '#00ff41');
+                        this.renderer.renderHighlightRoom(this.dungeon.rooms[s.doorId], '#00ff41');
+                        await this.sleep(speed * 3);
+                        // Re-render clean state
+                        this.renderer.render(this.dungeon, { showArticulation: false });
+                    }
+                }
+
+                // PHASE 4: Graph analysis
+                await this.updatePhase('ANIMATING: DFS TRAVERSAL', 85);
+                const analysis = this.dungeon.analyzeGraph();
+                
+                // Animate DFS visitation
+                const startRoom = this.dungeon.rooms.find(r => r.isStart);
+                if (startRoom) {
+                    const dfsOrder = [];
+                    const visited = new Set();
+                    const dfsCollect = (id) => {
+                        visited.add(id);
+                        dfsOrder.push(id);
+                        for (const n of (this.dungeon.graph.get(id) || [])) {
+                            if (!visited.has(n)) dfsCollect(n);
+                        }
+                    };
+                    dfsCollect(startRoom.id);
+
+                    this.renderer.render(this.dungeon, { showArticulation: false });
+                    for (let i = 0; i < dfsOrder.length; i++) {
+                        this.renderer.renderHighlightRoom(this.dungeon.rooms[dfsOrder[i]], '#00d9ff');
+                        await this.updatePhase(`DFS VISIT ${i+1}/${dfsOrder.length}`, 85 + (i/dfsOrder.length) * 10);
+                        await this.sleep(speed);
+                    }
+                }
+
+                // Tarjan's
+                await this.updatePhase('TARJAN\'S ANALYSIS', 95);
+                const tarjan = this.dungeon.findArticulationPoints();
+                this.renderer.render(this.dungeon, { showArticulation: true });
+                await this.sleep(speed * 5);
+
+                // Final state
+                this.renderer.render(this.dungeon, { showArticulation: false });
+                await this.updatePhase('ANIMATION COMPLETE', 100);
+                
+                this.updateStats(config, numKeys, addedExtra, analysis, tarjan, startTime);
+                this.enableFeatureButtons();
+                this.currentPath = null;
+                this.showArticulation = false;
+
+                await this.sleep(1000);
+                await this.updatePhase('READY — CLICK ROOMS IN PATH MODE', 0);
+                
+                this.isAnimating = false;
+                this.disableButtons(false);
+            }
+
+            // ================================================================
+            // A* PATH MODE
+            // ================================================================
+            togglePathMode() {
+                if (!this.dungeon) return;
+                this.pathMode = !this.pathMode;
+                
+                const btn = document.getElementById('pathModeBtn');
+                const info = document.getElementById('pathInfo');
+                
+                if (this.pathMode) {
+                    btn.classList.add('active-toggle');
+                    btn.textContent = '🎯 PATH MODE: ON';
+                    this.canvas.classList.add('pathmode');
+                    info.classList.add('visible');
+                    this.updatePhase('PATH MODE — CLICK ANY ROOM', 0);
+                } else {
+                    btn.classList.remove('active-toggle');
+                    btn.textContent = '🎯 Path Mode (A*)';
+                    this.canvas.classList.remove('pathmode');
+                    info.classList.remove('visible');
+                    this.currentPath = null;
+                    this.renderer.render(this.dungeon, { showArticulation: this.showArticulation });
+                    this.updatePhase('READY', 0);
+                }
+            }
+
+            handleCanvasClick(e) {
+                if (!this.pathMode || !this.dungeon) return;
+                
+                const rect = this.canvas.getBoundingClientRect();
+                const scaleX = this.canvas.width / rect.width;
+                const scaleY = this.canvas.height / rect.height;
+                const x = (e.clientX - rect.left) * scaleX;
+                const y = (e.clientY - rect.top) * scaleY;
+
+                // Find clicked room
+                for (const room of this.dungeon.rooms) {
+                    const r = room.rect;
+                    if (x >= r.x && x <= r.x + r.width && y >= r.y && y <= r.y + r.height) {
+                        this.runAStar(room.id);
+                        return;
+                    }
+                }
+            }
+
+            runAStar(goalId) {
+                const startRoom = this.dungeon.rooms.find(r => r.isStart);
+                if (!startRoom) return;
+
+                if (goalId === startRoom.id) {
+                    this.updatePhase('THAT\'S THE START ROOM!', 0);
+                    return;
+                }
+
+                const result = this.dungeon.aStarPath(startRoom.id, goalId);
+                
+                if (result) {
+                    this.currentPath = result.path;
+                    this.renderer.render(this.dungeon, {
+                        showArticulation: this.showArticulation,
+                        path: this.currentPath
+                    });
+
+                    document.getElementById('pathLength').textContent = result.cost.toFixed(1) + 'px';
+                    document.getElementById('pathRooms').textContent = result.path.length;
+                    document.getElementById('pathExplored').textContent = result.explored;
+                    document.getElementById('pathTarget').textContent = `Room #${goalId}`;
+                    
+                    this.updatePhase(`A* PATH FOUND: ${result.path.length} ROOMS, ${result.explored} EXPLORED`, 0);
+                } else {
+                    this.updatePhase('NO PATH FOUND!', 0);
+                }
+            }
+
+            // ================================================================
+            // ARTICULATION POINTS TOGGLE
+            // ================================================================
+            toggleArticulation() {
+                if (!this.dungeon) return;
+                this.showArticulation = !this.showArticulation;
+
+                const btn = document.getElementById('articulationBtn');
+                if (this.showArticulation) {
+                    btn.classList.add('active-toggle-orange');
+                    btn.textContent = '◆ ARTICULATION: ON';
+                } else {
+                    btn.classList.remove('active-toggle-orange');
+                    btn.textContent = '◆ Articulation Points';
+                }
+
+                this.renderer.render(this.dungeon, {
+                    showArticulation: this.showArticulation,
+                    path: this.currentPath
+                });
+            }
+
+            // ================================================================
+            // HELPERS
+            // ================================================================
+            updateStats(config, numKeys, addedExtra, analysis, tarjan, startTime) {
                 const endTime = performance.now();
                 const timeTaken = ((endTime - startTime) / 1000).toFixed(2);
                 
                 document.getElementById('statRooms').textContent = this.dungeon.rooms.length;
-                document.getElementById('statCorridors').textContent = this.dungeon.corridors.length;
+                document.getElementById('statCorridors').textContent = this.dungeon.corridors.filter(c => !c.isExtra).length;
+                document.getElementById('statExtra').textContent = addedExtra;
                 document.getElementById('statDepth').textContent = config.maxDepth;
                 document.getElementById('statKeys').textContent = numKeys;
                 document.getElementById('statReachable').textContent = 
                     `${analysis.reachable}/${this.dungeon.rooms.length}`;
+                document.getElementById('statCycles').textContent = analysis.cycles;
+                document.getElementById('statKeyDoor').textContent = 
+                    analysis.keyDoorValid ? '✓ VALID' : '✗ INVALID';
+                document.getElementById('statKeyDoor').style.color = 
+                    analysis.keyDoorValid ? '#00ff41' : '#ff0055';
+                document.getElementById('statMaxDepth').textContent = analysis.maxDepth;
+                document.getElementById('statAP').textContent = tarjan.articulationPoints.size;
+                document.getElementById('statBridges').textContent = tarjan.bridges.length;
                 document.getElementById('statTime').textContent = `${timeTaken}s`;
-                
-                await this.sleep(1000);
-                await this.updatePhase('READY TO GENERATE', 0);
+            }
+
+            enableFeatureButtons() {
+                document.getElementById('pathModeBtn').disabled = false;
+                document.getElementById('articulationBtn').disabled = false;
+            }
+
+            disableButtons(disabled) {
+                document.getElementById('generateBtn').disabled = disabled;
+                document.getElementById('animateBtn').disabled = disabled;
+                document.getElementById('exportBtn').disabled = disabled;
+                document.getElementById('pathModeBtn').disabled = disabled;
+                document.getElementById('articulationBtn').disabled = disabled;
             }
             
             async updatePhase(text, progress) {
@@ -1174,29 +1937,22 @@
             }
             
             exportDungeon() {
-                if (!this.dungeon) {
-                    alert('Generate a dungeon first!');
-                    return;
-                }
+                if (!this.dungeon) { alert('Generate a dungeon first!'); return; }
                 
                 const exportData = {
                     seed: this.dungeon.config.seed,
                     config: this.dungeon.config,
                     rooms: this.dungeon.rooms.map(r => ({
-                        id: r.id,
-                        x: r.rect.x,
-                        y: r.rect.y,
-                        width: r.rect.width,
-                        height: r.rect.height,
-                        hasKey: r.hasKey,
-                        hasDoor: r.hasDoor,
-                        isStart: r.isStart
+                        id: r.id, x: r.rect.x, y: r.rect.y,
+                        width: r.rect.width, height: r.rect.height,
+                        hasKey: r.hasKey, hasDoor: r.hasDoor, isStart: r.isStart
                     })),
                     corridors: this.dungeon.corridors.map(c => ({
-                        from: c.from.id,
-                        to: c.to.id
+                        from: c.from.id, to: c.to.id, isExtra: c.isExtra || false
                     })),
-                    graph: Object.fromEntries(this.dungeon.graph)
+                    graph: Object.fromEntries(this.dungeon.graph),
+                    articulationPoints: [...this.dungeon.articulationPoints],
+                    bridges: this.dungeon.bridges
                 };
                 
                 const json = JSON.stringify(exportData, null, 2);
