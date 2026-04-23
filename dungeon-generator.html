@@ -453,6 +453,62 @@
             transition: width 0.3s;
             box-shadow: 0 0 10px var(--accent-green);
         }
+
+        /* ── NP-HARD PANELS ── */
+        .nphard-panel {
+            background: #000;
+            border: 1px solid var(--border-color);
+            border-radius: 2px;
+            padding: 1rem;
+            margin-top: 1rem;
+            display: none;
+        }
+        .nphard-panel.visible { display: block; }
+        .nphard-title {
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 0.75rem;
+        }
+        .nphard-title.tsp  { color: var(--accent-yellow); }
+        .nphard-title.ks   { color: var(--accent-red); }
+        .nphard-panel .stat-row .stat-value.tsp-val { color: var(--accent-yellow); }
+        .nphard-panel .stat-row .stat-value.ks-val  { color: var(--accent-red); }
+        .nphard-panel .stat-row .stat-value.np-class { color: var(--accent-orange); }
+        button.gold { border-color: var(--accent-yellow); color: var(--accent-yellow); margin-top: 0.5rem; }
+        button.gold::before { background: var(--accent-yellow); }
+        button.red2 { border-color: var(--accent-red); color: var(--accent-red); margin-top: 0.5rem; }
+        button.red2::before { background: var(--accent-red); }
+        .np-section-label {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.65rem;
+            color: var(--accent-yellow);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            margin: 1.25rem 0 0.6rem;
+        }
+        .np-badge {
+            background: rgba(255,204,0,0.12);
+            border: 1px solid var(--accent-yellow);
+            color: var(--accent-yellow);
+            font-size: 0.58rem;
+            padding: 0.1rem 0.35rem;
+            border-radius: 2px;
+            letter-spacing: 0.05em;
+        }
+        .ks-table { width:100%; border-collapse:collapse; font-size:0.63rem; margin-top:0.5rem; }
+        .ks-table th { color:var(--accent-cyan); text-align:left; padding:0.25rem 0.35rem; border-bottom:1px solid var(--border-color); text-transform:uppercase; }
+        .ks-table td { padding:0.2rem 0.35rem; border-bottom:1px solid rgba(255,255,255,0.04); color:var(--text-dim); }
+        .ks-table tr.picked td { color:var(--accent-green); }
+        .algo-card { background:#000; border:1px solid var(--border-color); border-radius:3px; padding:1rem; margin-bottom:1rem; }
+        .algo-card h3 { color:var(--accent-green); font-size:0.85rem; margin-bottom:0.6rem; text-transform:uppercase; letter-spacing:0.08em; }
+        .algo-card .badge { display:inline-block; font-size:0.58rem; padding:0.1rem 0.4rem; border-radius:2px; margin-left:0.4rem; font-weight:700; vertical-align:middle; }
+        .badge-np { background:rgba(255,149,0,0.2); border:1px solid var(--accent-orange); color:var(--accent-orange); }
+        .badge-p  { background:rgba(0,217,255,0.12); border:1px solid var(--accent-cyan); color:var(--accent-cyan); }
     </style>
 </head>
 <body>
@@ -463,7 +519,7 @@
     <div class="container">
         <header>
             <h1>PROCEDURAL DUNGEON GENERATOR</h1>
-            <div class="subtitle">BSP • Prim's MST • Backtracking • A* Pathfinding • Tarjan's Analysis</div>
+            <div class="subtitle">BSP • Prim's MST • Backtracking • A* • Tarjan's • <span style="color:var(--accent-yellow)">TSP</span> • <span style="color:var(--accent-red)">Knapsack</span></div>
         </header>
         
         <div class="grid-layout">
@@ -541,6 +597,16 @@
 
                 <button class="purple" id="pathModeBtn" disabled>🎯 Path Mode (A*)</button>
                 <button class="orange" id="articulationBtn" disabled>◆ Articulation Points</button>
+
+                <div class="np-section-label">⚠ NP-Hard <span class="np-badge">NP-HARD</span></div>
+
+                <div class="control-group" style="margin-bottom:0.75rem">
+                    <label class="control-label">Knapsack Capacity <span class="value-display" id="ksCapVal">30</span></label>
+                    <input type="range" id="ksCapacity" min="10" max="80" value="30" step="5">
+                </div>
+
+                <button class="gold" id="tspBtn" disabled>🗺 TSP Boss Route</button>
+                <button class="red2" id="knapsackBtn" disabled>🎒 Knapsack Loot</button>
                 
                 <div class="stats" id="stats">
                     <div class="stat-row">
@@ -595,22 +661,31 @@
 
                 <div class="path-info" id="pathInfo">
                     <div class="section-title" style="color:var(--accent-purple)">🎯 A* Pathfinding</div>
-                    <div class="stat-row">
-                        <span class="stat-label">Path Length</span>
-                        <span class="stat-value" id="pathLength">—</span>
-                    </div>
-                    <div class="stat-row">
-                        <span class="stat-label">Rooms Traversed</span>
-                        <span class="stat-value" id="pathRooms">—</span>
-                    </div>
-                    <div class="stat-row">
-                        <span class="stat-label">Nodes Explored</span>
-                        <span class="stat-value" id="pathExplored">—</span>
-                    </div>
-                    <div class="stat-row">
-                        <span class="stat-label">Target Room</span>
-                        <span class="stat-value" id="pathTarget">—</span>
-                    </div>
+                    <div class="stat-row"><span class="stat-label">Path Length</span><span class="stat-value" id="pathLength">—</span></div>
+                    <div class="stat-row"><span class="stat-label">Rooms Traversed</span><span class="stat-value" id="pathRooms">—</span></div>
+                    <div class="stat-row"><span class="stat-label">Nodes Explored</span><span class="stat-value" id="pathExplored">—</span></div>
+                    <div class="stat-row"><span class="stat-label">Target Room</span><span class="stat-value" id="pathTarget">—</span></div>
+                </div>
+
+                <div class="nphard-panel" id="tspPanel">
+                    <div class="nphard-title tsp">🗺 Travelling Salesman (Nearest Neighbor)</div>
+                    <div class="stat-row"><span class="stat-label">Tour Distance</span><span class="stat-value tsp-val" id="tspDist">—</span></div>
+                    <div class="stat-row"><span class="stat-label">Rooms in Tour</span><span class="stat-value tsp-val" id="tspRooms">—</span></div>
+                    <div class="stat-row"><span class="stat-label">Complexity</span><span class="stat-value" style="color:var(--text-dim)">O(N²)</span></div>
+                    <div class="stat-row"><span class="stat-label">Problem Class</span><span class="stat-value np-class">NP-HARD</span></div>
+                </div>
+
+                <div class="nphard-panel" id="knapsackPanel">
+                    <div class="nphard-title ks">🎒 0/1 Knapsack (DP Exact)</div>
+                    <div class="stat-row"><span class="stat-label">Capacity (W)</span><span class="stat-value ks-val" id="ksCapDisplay">—</span></div>
+                    <div class="stat-row"><span class="stat-label">Optimal Value</span><span class="stat-value ks-val" id="ksOptValue">—</span></div>
+                    <div class="stat-row"><span class="stat-label">Items Selected</span><span class="stat-value ks-val" id="ksSelected">—</span></div>
+                    <div class="stat-row"><span class="stat-label">Complexity</span><span class="stat-value" style="color:var(--text-dim)">O(N·W)</span></div>
+                    <div class="stat-row"><span class="stat-label">Problem Class</span><span class="stat-value np-class">NP-HARD</span></div>
+                    <table class="ks-table" id="ksTable">
+                        <thead><tr><th>Room</th><th>Val</th><th>Wt</th><th>In?</th></tr></thead>
+                        <tbody id="ksTableBody"></tbody>
+                    </table>
                 </div>
             </div>
         </div>
@@ -657,6 +732,14 @@
                 <div class="legend-item">
                     <div class="legend-color dashed"></div>
                     <span>Bridge Corridors</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: var(--accent-yellow); border-style: dashed;"></div>
+                    <span>TSP Boss Tour</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: var(--accent-red);"></div>
+                    <span>Knapsack Loot</span>
                 </div>
             </div>
         </div>
@@ -766,6 +849,8 @@
                 this.hasKey = null;
                 this.hasDoor = null;
                 this.isStart = false;
+                this.lootValue  = 0;
+                this.lootWeight = 0;
             }
         }
         
@@ -881,6 +966,8 @@
                     
                     const roomRect = new Rectangle(node.rect.x + ix, node.rect.y + iy, rw, rh);
                     const room = new Room(this.rooms.length, roomRect);
+                    room.lootValue  = this.rng.range(1, 20);
+                    room.lootWeight = this.rng.range(1, 10);
                     node.room = room;
                     this.rooms.push(room);
                     this.animSteps.push({ type: 'room-create', roomId: room.id });
@@ -1179,40 +1266,82 @@
             findArticulationPoints() {
                 const n = this.rooms.length;
                 const disc = new Array(n).fill(-1);
-                const low = new Array(n).fill(-1);
+                const low  = new Array(n).fill(-1);
                 const parent = new Array(n).fill(-1);
                 this.articulationPoints = new Set();
                 this.bridges = [];
                 let timer = 0;
-
                 const dfs = (u) => {
                     let children = 0;
                     disc[u] = low[u] = timer++;
-                    
                     for (const v of (this.graph.get(u) || [])) {
                         if (disc[v] === -1) {
-                            children++;
-                            parent[v] = u;
-                            dfs(v);
+                            children++; parent[v] = u; dfs(v);
                             low[u] = Math.min(low[u], low[v]);
-
-                            // Root with 2+ children
                             if (parent[u] === -1 && children > 1) this.articulationPoints.add(u);
-                            // Non-root with low[v] >= disc[u]
                             if (parent[u] !== -1 && low[v] >= disc[u]) this.articulationPoints.add(u);
-                            // Bridge
                             if (low[v] > disc[u]) this.bridges.push([u, v]);
-                        } else if (v !== parent[u]) {
-                            low[u] = Math.min(low[u], disc[v]);
-                        }
+                        } else if (v !== parent[u]) { low[u] = Math.min(low[u], disc[v]); }
                     }
                 };
-
-                for (let i = 0; i < n; i++) {
-                    if (disc[i] === -1) dfs(i);
-                }
-
+                for (let i = 0; i < n; i++) { if (disc[i] === -1) dfs(i); }
                 return { articulationPoints: this.articulationPoints, bridges: this.bridges };
+            }
+
+            // ================================================================
+            // NP-HARD: TRAVELLING SALESMAN (Nearest Neighbor Heuristic)
+            // ================================================================
+            solveTSP() {
+                const n = this.rooms.length;
+                if (n < 2) return { tour: [], totalDist: 0 };
+                const visited = new Array(n).fill(false);
+                const tour = [];
+                let startIdx = this.rooms.findIndex(r => r.isStart);
+                if (startIdx === -1) startIdx = 0;
+                let current = startIdx;
+                for (let step = 0; step < n; step++) {
+                    visited[current] = true;
+                    tour.push(current);
+                    let bestDist = Infinity, bestNext = -1;
+                    for (let i = 0; i < n; i++) {
+                        if (!visited[i]) {
+                            const d = this.euclideanDistance(this.rooms[current], this.rooms[i]);
+                            if (d < bestDist) { bestDist = d; bestNext = i; }
+                        }
+                    }
+                    if (bestNext === -1) break;
+                    current = bestNext;
+                }
+                tour.push(tour[0]); // return to start
+                let totalDist = 0;
+                for (let i = 0; i < tour.length - 1; i++)
+                    totalDist += this.euclideanDistance(this.rooms[tour[i]], this.rooms[tour[i+1]]);
+                return { tour, totalDist: Math.round(totalDist) };
+            }
+
+            // ================================================================
+            // NP-HARD: 0/1 KNAPSACK (DP Exact O(N*W))
+            // ================================================================
+            solveKnapsack(W) {
+                const items = this.rooms.map(r => ({ id: r.id, value: r.lootValue, weight: r.lootWeight }));
+                const n = items.length;
+                // Build DP table
+                const dp = Array.from({ length: n + 1 }, () => new Int32Array(W + 1));
+                for (let i = 1; i <= n; i++) {
+                    const { value, weight } = items[i - 1];
+                    for (let w = 0; w <= W; w++) {
+                        dp[i][w] = dp[i-1][w];
+                        if (weight <= w && dp[i-1][w - weight] + value > dp[i][w])
+                            dp[i][w] = dp[i-1][w - weight] + value;
+                    }
+                }
+                // Backtrack to find selected items
+                const selected = new Set();
+                let w = W;
+                for (let i = n; i > 0; i--) {
+                    if (dp[i][w] !== dp[i-1][w]) { selected.add(items[i-1].id); w -= items[i-1].weight; }
+                }
+                return { optimalValue: dp[n][W], selected, allItems: items, capacity: W };
             }
         }
         
@@ -1447,6 +1576,64 @@
                 }
             }
 
+            // TSP TOUR RENDERING
+            renderTSPTour(tour, rooms) {
+                if (!tour || tour.length < 2) return;
+                this.ctx.strokeStyle = '#ffcc00';
+                this.ctx.lineWidth = 3;
+                this.ctx.shadowColor = '#ffcc00';
+                this.ctx.shadowBlur = 12;
+                this.ctx.setLineDash([7, 4]);
+                this.ctx.beginPath();
+                const fr = rooms[tour[0]];
+                this.ctx.moveTo(fr.rect.centerX, fr.rect.centerY);
+                for (let i = 1; i < tour.length; i++) {
+                    const r = rooms[tour[i]];
+                    this.ctx.lineTo(r.rect.centerX, r.rect.centerY);
+                }
+                this.ctx.stroke();
+                this.ctx.setLineDash([]);
+                this.ctx.shadowBlur = 0;
+                // Step labels
+                for (let i = 0; i < tour.length - 1; i++) {
+                    const r = rooms[tour[i]];
+                    const cx = r.rect.centerX, cy = r.rect.centerY;
+                    this.ctx.fillStyle = '#ffcc00';
+                    this.ctx.shadowColor = '#ffcc00'; this.ctx.shadowBlur = 10;
+                    this.ctx.beginPath(); this.ctx.arc(cx, cy, 8, 0, Math.PI * 2); this.ctx.fill();
+                    this.ctx.shadowBlur = 0;
+                    this.ctx.fillStyle = '#000';
+                    this.ctx.font = 'bold 8px JetBrains Mono';
+                    this.ctx.textAlign = 'center'; this.ctx.textBaseline = 'middle';
+                    this.ctx.fillText(i + 1, cx, cy);
+                }
+                this.ctx.textBaseline = 'alphabetic';
+            }
+
+            // KNAPSACK ROOM HIGHLIGHT
+            renderKnapsackRooms(selected, allItems, rooms) {
+                for (const item of allItems) {
+                    const r = rooms[item.id];
+                    if (!selected.has(item.id)) {
+                        this.ctx.fillStyle = 'rgba(0,0,0,0.55)';
+                        this.ctx.fillRect(r.rect.x, r.rect.y, r.rect.width, r.rect.height);
+                    }
+                }
+                for (const item of allItems) {
+                    if (!selected.has(item.id)) continue;
+                    const r = rooms[item.id];
+                    this.ctx.strokeStyle = '#ff0055';
+                    this.ctx.lineWidth = 3;
+                    this.ctx.shadowColor = '#ff0055'; this.ctx.shadowBlur = 18;
+                    this.ctx.strokeRect(r.rect.x - 2, r.rect.y - 2, r.rect.width + 4, r.rect.height + 4);
+                    this.ctx.shadowBlur = 0;
+                    this.ctx.fillStyle = '#ff0055';
+                    this.ctx.font = 'bold 9px JetBrains Mono';
+                    this.ctx.textAlign = 'center';
+                    this.ctx.fillText(`V:${item.value} W:${item.weight}`, r.rect.centerX, r.rect.y - 4);
+                }
+            }
+
             // ANIMATION HIGHLIGHT
             renderHighlightRoom(room, color) {
                 const r = room.rect;
@@ -1477,15 +1664,13 @@
                 this.renderRooms(dungeon.rooms);
                 this.renderCorridors(dungeon.corridors);
                 this.renderItems(dungeon.rooms);
-
                 if (options.showArticulation && dungeon.articulationPoints.size > 0) {
                     this.renderBridges(dungeon.bridges, dungeon.rooms);
                     this.renderArticulationPoints(dungeon.articulationPoints, dungeon.rooms);
                 }
-
-                if (options.path) {
-                    this.renderPath(options.path, dungeon.rooms);
-                }
+                if (options.path) this.renderPath(options.path, dungeon.rooms);
+                if (options.tspTour) this.renderTSPTour(options.tspTour, dungeon.rooms);
+                if (options.knapsack) this.renderKnapsackRooms(options.knapsack.selected, options.knapsack.allItems, dungeon.rooms);
             }
         }
         
@@ -1501,42 +1686,39 @@
                 this.pathMode = false;
                 this.showArticulation = false;
                 this.currentPath = null;
-                
+                this.tspResult = null;
+                this.knapsackResult = null;
+                this.showTSP = false;
+                this.showKnapsack = false;
                 this.setupEventListeners();
             }
             
             setupEventListeners() {
-                // Range inputs
                 const rangeBindings = [
                     ['mapSize', 'mapSizeValue'],
                     ['minRoom', 'minRoomValue'],
                     ['maxDepth', 'maxDepthValue'],
                     ['numKeys', 'numKeysValue'],
                     ['extraCorridors', 'extraCorridorsValue'],
-                    ['animSpeed', 'animSpeedValue']
+                    ['animSpeed', 'animSpeedValue'],
+                    ['ksCapacity', 'ksCapVal']
                 ];
-                
                 for (const [inputId, displayId] of rangeBindings) {
                     document.getElementById(inputId).addEventListener('input', (e) => {
                         document.getElementById(displayId).textContent = e.target.value;
                     });
                 }
-
-                // Map size also resizes canvas
                 document.getElementById('mapSize').addEventListener('input', (e) => {
                     this.canvas.width = parseInt(e.target.value);
                     this.canvas.height = parseInt(e.target.value);
                 });
-                
                 document.getElementById('generateBtn').addEventListener('click', () => this.generateDungeon());
                 document.getElementById('animateBtn').addEventListener('click', () => this.animateGeneration());
                 document.getElementById('exportBtn').addEventListener('click', () => this.exportDungeon());
-
-                // Advanced feature toggles
                 document.getElementById('pathModeBtn').addEventListener('click', () => this.togglePathMode());
                 document.getElementById('articulationBtn').addEventListener('click', () => this.toggleArticulation());
-
-                // Canvas click for A* pathfinding
+                document.getElementById('tspBtn').addEventListener('click', () => this.runTSP());
+                document.getElementById('knapsackBtn').addEventListener('click', () => this.runKnapsack());
                 this.canvas.addEventListener('click', (e) => this.handleCanvasClick(e));
             }
 
@@ -1593,13 +1775,19 @@
                 
                 this.updateStats(config, numKeys, addedExtra, analysis, tarjan, startTime);
                 this.enableFeatureButtons();
-                this.currentPath = null;
-                this.showArticulation = false;
+                this.showTSP = false;
+                this.showKnapsack = false;
+                this.tspResult = null;
+                this.knapsackResult = null;
+                document.getElementById('tspBtn').textContent = '🗺 TSP Boss Route';
+                document.getElementById('knapsackBtn').textContent = '🎒 Knapsack Loot';
+                document.getElementById('tspPanel').classList.remove('visible');
+                document.getElementById('knapsackPanel').classList.remove('visible');
                 document.getElementById('articulationBtn').classList.remove('active-toggle-orange');
                 document.getElementById('pathInfo').classList.remove('visible');
                 
                 await this.sleep(800);
-                await this.updatePhase('READY — CLICK ROOMS IN PATH MODE', 0);
+                await this.updatePhase('READY — USE ADVANCED FEATURES BELOW', 0);
             }
 
             // ================================================================
@@ -1784,9 +1972,15 @@
                 this.enableFeatureButtons();
                 this.currentPath = null;
                 this.showArticulation = false;
+                this.showTSP = false; this.showKnapsack = false;
+                this.tspResult = null; this.knapsackResult = null;
+                document.getElementById('tspBtn').textContent = '🗺 TSP Boss Route';
+                document.getElementById('knapsackBtn').textContent = '🎒 Knapsack Loot';
+                document.getElementById('tspPanel').classList.remove('visible');
+                document.getElementById('knapsackPanel').classList.remove('visible');
 
                 await this.sleep(1000);
-                await this.updatePhase('READY — CLICK ROOMS IN PATH MODE', 0);
+                await this.updatePhase('READY — USE ADVANCED FEATURES BELOW', 0);
                 
                 this.isAnimating = false;
                 this.disableButtons(false);
@@ -1814,7 +2008,7 @@
                     this.canvas.classList.remove('pathmode');
                     info.classList.remove('visible');
                     this.currentPath = null;
-                    this.renderer.render(this.dungeon, { showArticulation: this.showArticulation });
+                    this.rerender();
                     this.updatePhase('READY', 0);
                 }
             }
@@ -1851,16 +2045,11 @@
                 
                 if (result) {
                     this.currentPath = result.path;
-                    this.renderer.render(this.dungeon, {
-                        showArticulation: this.showArticulation,
-                        path: this.currentPath
-                    });
-
+                    this.rerender();
                     document.getElementById('pathLength').textContent = result.cost.toFixed(1) + 'px';
                     document.getElementById('pathRooms').textContent = result.path.length;
                     document.getElementById('pathExplored').textContent = result.explored;
                     document.getElementById('pathTarget').textContent = `Room #${goalId}`;
-                    
                     this.updatePhase(`A* PATH FOUND: ${result.path.length} ROOMS, ${result.explored} EXPLORED`, 0);
                 } else {
                     this.updatePhase('NO PATH FOUND!', 0);
@@ -1873,7 +2062,6 @@
             toggleArticulation() {
                 if (!this.dungeon) return;
                 this.showArticulation = !this.showArticulation;
-
                 const btn = document.getElementById('articulationBtn');
                 if (this.showArticulation) {
                     btn.classList.add('active-toggle-orange');
@@ -1882,11 +2070,7 @@
                     btn.classList.remove('active-toggle-orange');
                     btn.textContent = '◆ Articulation Points';
                 }
-
-                this.renderer.render(this.dungeon, {
-                    showArticulation: this.showArticulation,
-                    path: this.currentPath
-                });
+                this.rerender();
             }
 
             // ================================================================
@@ -1914,17 +2098,92 @@
                 document.getElementById('statTime').textContent = `${timeTaken}s`;
             }
 
+            // ================================================================
+            // NP-HARD: TSP
+            // ================================================================
+            runTSP() {
+                if (!this.dungeon) return;
+                this.showTSP = !this.showTSP;
+                this.showKnapsack = false;
+                const btn = document.getElementById('tspBtn');
+                const panel = document.getElementById('tspPanel');
+                const ksPanel = document.getElementById('knapsackPanel');
+                ksPanel.classList.remove('visible');
+                document.getElementById('knapsackBtn').textContent = '🎒 Knapsack Loot';
+                if (this.showTSP) {
+                    this.tspResult = this.dungeon.solveTSP();
+                    btn.textContent = '🗺 TSP: ON';
+                    panel.classList.add('visible');
+                    document.getElementById('tspDist').textContent = this.tspResult.totalDist + 'px';
+                    document.getElementById('tspRooms').textContent = this.tspResult.tour.length - 1;
+                } else {
+                    btn.textContent = '🗺 TSP Boss Route';
+                    panel.classList.remove('visible');
+                    this.tspResult = null;
+                }
+                this.rerender();
+            }
+
+            // ================================================================
+            // NP-HARD: KNAPSACK
+            // ================================================================
+            runKnapsack() {
+                if (!this.dungeon) return;
+                this.showKnapsack = !this.showKnapsack;
+                this.showTSP = false;
+                const btn = document.getElementById('knapsackBtn');
+                const panel = document.getElementById('knapsackPanel');
+                const tspPanel = document.getElementById('tspPanel');
+                tspPanel.classList.remove('visible');
+                document.getElementById('tspBtn').textContent = '🗺 TSP Boss Route';
+                this.tspResult = null;
+                if (this.showKnapsack) {
+                    const W = parseInt(document.getElementById('ksCapacity').value);
+                    this.knapsackResult = this.dungeon.solveKnapsack(W);
+                    btn.textContent = '🎒 Knapsack: ON';
+                    panel.classList.add('visible');
+                    document.getElementById('ksCapDisplay').textContent = W;
+                    document.getElementById('ksOptValue').textContent = this.knapsackResult.optimalValue;
+                    document.getElementById('ksSelected').textContent = this.knapsackResult.selected.size;
+                    // Fill table (top 15 items for readability)
+                    const tbody = document.getElementById('ksTableBody');
+                    tbody.innerHTML = '';
+                    const show = this.knapsackResult.allItems.slice(0, 15);
+                    for (const item of show) {
+                        const tr = document.createElement('tr');
+                        const picked = this.knapsackResult.selected.has(item.id);
+                        if (picked) tr.classList.add('picked');
+                        tr.innerHTML = `<td>#${item.id}</td><td>${item.value}</td><td>${item.weight}</td><td>${picked ? '✓' : ''}</td>`;
+                        tbody.appendChild(tr);
+                    }
+                } else {
+                    btn.textContent = '🎒 Knapsack Loot';
+                    panel.classList.remove('visible');
+                    this.knapsackResult = null;
+                }
+                this.rerender();
+            }
+
+            rerender() {
+                if (!this.dungeon) return;
+                this.renderer.render(this.dungeon, {
+                    showArticulation: this.showArticulation,
+                    path: this.currentPath,
+                    tspTour: this.showTSP && this.tspResult ? this.tspResult.tour : null,
+                    knapsack: this.showKnapsack && this.knapsackResult ? this.knapsackResult : null
+                });
+            }
+
             enableFeatureButtons() {
                 document.getElementById('pathModeBtn').disabled = false;
                 document.getElementById('articulationBtn').disabled = false;
+                document.getElementById('tspBtn').disabled = false;
+                document.getElementById('knapsackBtn').disabled = false;
             }
 
             disableButtons(disabled) {
-                document.getElementById('generateBtn').disabled = disabled;
-                document.getElementById('animateBtn').disabled = disabled;
-                document.getElementById('exportBtn').disabled = disabled;
-                document.getElementById('pathModeBtn').disabled = disabled;
-                document.getElementById('articulationBtn').disabled = disabled;
+                ['generateBtn','animateBtn','exportBtn','pathModeBtn','articulationBtn','tspBtn','knapsackBtn']
+                    .forEach(id => { document.getElementById(id).disabled = disabled; });
             }
             
             async updatePhase(text, progress) {
